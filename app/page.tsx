@@ -352,10 +352,16 @@ export default function Home() {
     results.closingCosts > 0
   const hasAdvancedRentingCosts = results.monthlyRentalUtilities > 0
   const showCmhcDetails = results.downPaymentPercent < 20
+  const comparisonBuyingTableColumnCount =
+    7 +
+    (results.cmhcPremium > 0 ? 1 : 0) +
+    (results.monthlyMaintenance > 0 ? 1 : 0) +
+    (results.monthlyHomeInsurance > 0 ? 1 : 0) +
+    (results.closingCosts > 0 ? 1 : 0)
   const buyingTotalBreakdown = [
     ...(includeDownPaymentInComparison ? ["Down payment"] : []),
     "principal",
-    "interest",
+    "mortgage interest",
     ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
     ...(results.monthlyMaintenance > 0 ? ["maintenance"] : []),
     ...(results.monthlyHomeInsurance > 0 ? ["insurance"] : []),
@@ -363,7 +369,7 @@ export default function Home() {
   ].join(" + ")
   const buyingCostBreakdown = [
     ...(results.cmhcPremium > 0 ? ["CMHC premium"] : []),
-    "Interest",
+    "Mortgage interest",
     ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
     ...(results.monthlyMaintenance > 0 ? ["maintenance"] : []),
     ...(results.monthlyHomeInsurance > 0 ? ["insurance"] : []),
@@ -674,8 +680,8 @@ export default function Home() {
                 />
                 <DetailRow
                   amount={preciseMoney(results.selectedMonthInterest)}
-                  label="Interest this month"
-                  note="Cost of borrowing"
+                  label="Mortgage interest this month"
+                  note="Cost of mortgage borrowing"
                 />
                 <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Municipal taxes" />
                 <DetailRow
@@ -693,9 +699,9 @@ export default function Home() {
                 <strong>Does the monthly cost change?</strong> In this estimate, the mortgage
                 payment stays level within each five-year term and is recalculated at renewal using
                 the entered rate, remaining balance, and remaining amortization. Entered monthly
-                ownership costs stay level. Within each term, interest generally goes down while
-                principal—the part that pays off your mortgage—goes up. Once the mortgage is paid
-                off, the entered ownership costs remain.
+                ownership costs stay level. Within each term, mortgage interest generally goes down
+                while principal—the part that pays off your mortgage—goes up. Once the mortgage is
+                paid off, the entered ownership costs remain.
               </p>
 
               <div className="graph-panel" id="mortgage-graph">
@@ -717,7 +723,7 @@ export default function Home() {
                   </small>
                 </div>
                 <div
-                  aria-label={`${money(principalVsInterestTotal)} in total mortgage payments: ${money(results.selectedPrincipalPaid)} principal and ${money(results.selectedInterestPaid)} interest`}
+                  aria-label={`${money(principalVsInterestTotal)} in total mortgage payments: ${money(results.selectedPrincipalPaid)} principal and ${money(results.selectedInterestPaid)} mortgage interest`}
                   className="payment-split-bar"
                   role="img"
                 >
@@ -729,7 +735,7 @@ export default function Home() {
                   <span
                     className="interest"
                     style={{ width: `${selectedInterestPercent}%` }}
-                    title={`${percent(selectedInterestPercent)} interest`}
+                    title={`${percent(selectedInterestPercent)} mortgage interest`}
                   />
                 </div>
                 <div className="payment-split-cards">
@@ -747,12 +753,12 @@ export default function Home() {
                   <div className="interest-card">
                     <div>
                       <i className="legend interest" />
-                      <span>Interest paid</span>
+                      <span>Mortgage interest paid</span>
                     </div>
                     <strong>{money(results.selectedInterestPaid)}</strong>
                     <small>
-                      {percent(selectedInterestPercent)} of payments. This was the cost of
-                      borrowing and did not reduce your balance.
+                      {percent(selectedInterestPercent)} of payments. This was the mortgage
+                      borrowing cost and did not reduce your balance.
                     </small>
                   </div>
                 </div>
@@ -776,11 +782,11 @@ export default function Home() {
                 <p className="eyebrow">Mortgage schedule</p>
                 <h2>Year 1 to year 25</h2>
                 <p>
-                  Principal is the part of each payment that reduces what you still owe. Interest
-                  is the cost of borrowing. Municipal taxes are converted from the annual amount
-                  to a monthly cost. Mortgage payments are recalculated at each five-year renewal
-                  using the entered rate. All entered recurring ownership costs accumulate through
-                  each year; closing costs are counted once.
+                  Principal is the part of each payment that reduces what you still owe. Mortgage
+                  interest is the cost of borrowing. Municipal taxes are converted from the annual
+                  amount to a monthly cost. Mortgage payments are recalculated at each five-year
+                  renewal using the entered rate. All entered recurring ownership costs accumulate
+                  through each year; closing costs are counted once.
                 </p>
               </div>
             </div>
@@ -797,9 +803,9 @@ export default function Home() {
                     <th><span className="stacked-heading"><span>Mortgage</span><span>rate</span></span></th>
                     <th><span className="stacked-heading"><span>Monthly</span><span>payment</span></span></th>
                     <th><span className="stacked-heading"><span>Principal</span><span>this year</span></span></th>
-                    <th><span className="stacked-heading"><span>Interest</span><span>this year</span></span></th>
+                    <th><span className="stacked-heading"><span>Mortgage interest</span><span>this year</span></span></th>
                     <th><span className="stacked-heading"><span>Cumulative</span><span>principal</span></span></th>
-                    <th><span className="stacked-heading"><span>Cumulative</span><span>interest</span></span></th>
+                    <th><span className="stacked-heading"><span>Cumulative</span><span>mortgage interest</span></span></th>
                     <th><span className="stacked-heading"><span>Cumulative</span><span>taxes</span></span></th>
                     <th title="Utilities, maintenance, and homeowner insurance when entered.">
                       <span className="stacked-heading">
@@ -970,6 +976,15 @@ export default function Home() {
                 }
               >
                 <thead>
+                  <tr className="comparison-table-groups">
+                    <th aria-hidden="true" className="table-group-spacer" />
+                    <th className="table-group-buying" colSpan={comparisonBuyingTableColumnCount}>
+                      Buying
+                    </th>
+                    <th className="table-group-renting" colSpan={2}>
+                      Renting
+                    </th>
+                  </tr>
                   <tr>
                     <th>Year</th>
                     <th>Monthly rent</th>
@@ -1094,11 +1109,11 @@ export default function Home() {
                       <small>Home price minus mortgage balance; home value held level</small>
                     </div>
                     <div className="comparison-metric cost-metric">
-                      <span>Non-equity cost incurred</span>
+                      <span>Costs that do not build equity</span>
                       <strong>{money(comparisonBuyingCost)}</strong>
                       <small>
-                        {buyingCostBreakdown}. Maintenance, homeowner insurance, and closing costs
-                        are included when entered.
+                        {buyingCostBreakdown}. These are payments that do not reduce the mortgage
+                        balance or become home equity.
                       </small>
                     </div>
                   </div>
@@ -1154,9 +1169,9 @@ export default function Home() {
                       <small>Rent does not reduce a mortgage</small>
                     </div>
                     <div className="comparison-metric cost-metric">
-                      <span>Non-equity cost incurred</span>
+                      <span>Costs that do not build equity</span>
                       <strong>{money(results.selectedRentCash)}</strong>
-                      <small>All entered renting cash is a housing cost</small>
+                      <small>All entered renting cash is a housing cost and does not build home equity</small>
                     </div>
                   </div>
                 </section>
@@ -1216,7 +1231,7 @@ export default function Home() {
                     <strong>{money(comparisonBuyingGraphTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingGraphTotal)} in buying cash paid: ${includeDownPaymentInComparison ? `${money(results.downPayment)} down payment, ` : ""}${money(results.selectedPrincipalPaid)} mortgage principal, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
+                    aria-label={`${money(comparisonBuyingGraphTotal)} in buying cash paid: ${includeDownPaymentInComparison ? `${money(results.downPayment)} down payment, ` : ""}${money(results.selectedPrincipalPaid)} mortgage principal, ${money(results.selectedInterestPaid)} mortgage interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
@@ -1235,7 +1250,7 @@ export default function Home() {
                     <span
                       className="interest-fill"
                       style={{ width: `${comparisonInterestWidth}%` }}
-                      title={`${money(results.selectedInterestPaid)} interest`}
+                      title={`${money(results.selectedInterestPaid)} mortgage interest`}
                     />
                     {includeOwnerExtras ? (
                       <span
@@ -1279,7 +1294,7 @@ export default function Home() {
                         Down payment shown separately
                       </span>
                     )}
-                    <span><i className="legend interest" />Interest {money(results.selectedInterestPaid)}</span>
+                    <span><i className="legend interest" />Mortgage interest {money(results.selectedInterestPaid)}</span>
                     {includeOwnerExtras ? (
                       <span>
                         <i className="legend owner-extras" />
@@ -1364,8 +1379,8 @@ export default function Home() {
                 {results.cmhcPremium > 0
                   ? ", so the financed CMHC premium reduces equity."
                   : "."}
-                Buying&apos;s non-equity cost incurred is
-                {results.cmhcPremium > 0 ? " the estimated CMHC premium plus" : ""} interest
+                Buying costs that do not build equity are
+                {results.cmhcPremium > 0 ? " the estimated CMHC premium plus" : ""} mortgage interest
                 {includeOwnerExtras ? " plus municipal taxes and utilities" : ""}
                 {selectedMaintenancePaid > 0 ? " plus entered maintenance" : ""}
                 {selectedHomeInsurancePaid > 0 ? " plus entered homeowner insurance" : ""}
@@ -1413,11 +1428,11 @@ export default function Home() {
                     <th className="table-principal"><span className="stacked-heading"><span>Principal</span><span>paid</span></span></th>
                     <th className="table-non-equity">
                       <span className="stacked-heading">
-                        <span>Non-equity</span>
-                        <span>buying cost</span>
+                        <span>Costs not</span>
+                        <span>building equity</span>
                       </span>
                     </th>
-                    <th className="table-interest"><span className="stacked-heading"><span>Interest</span><span>cost</span></span></th>
+                    <th className="table-interest"><span className="stacked-heading"><span>Mortgage</span><span>interest</span></span></th>
                     <th className="table-owner-extras"><span className="stacked-heading"><span>Taxes +</span><span>utilities</span></span></th>
                     {results.monthlyMaintenance > 0 ? (
                       <th className="table-maintenance"><span className="stacked-heading"><span>Main-</span><span>tenance</span></span></th>

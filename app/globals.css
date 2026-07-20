@@ -1323,6 +1323,24 @@ tbody tr:hover {
   min-width: 1120px;
 }
 
+.comparison-table-groups th {
+  border-bottom: 1px solid var(--line-strong);
+  font-size: 0.66rem;
+  text-align: center;
+}
+
+.comparison-table-groups .table-group-spacer {
+  background: #e9eef7;
+}
+
+.comparison-table-groups .table-group-buying {
+  background: color-mix(in srgb, var(--blue) 14%, white);
+}
+
+.comparison-table-groups .table-group-renting {
+  background: color-mix(in srgb, var(--rent) 14%, white);
+}
+
 .comparison-table th.table-buying-cash,
 .comparison-table td.table-buying-cash {
   background: color-mix(in srgb, var(--blue) 10%, white);
