@@ -1,14 +1,16 @@
-# Home vs. Buy
+# Home Cash-Flow Calculator
 
-A Canadian home-buying and renting calculator built with Next.js.
+A simplified Canadian home-buying and renting cash-flow calculator built with Next.js.
 
 ## Features
 
 - Separate buying and renting worksheets
 - Buy-vs.-rent comparison on a shared 25-year timeline
 - Canadian mortgage calculations using semi-annual compounding
+- Estimated CMHC mortgage-insurance premiums for eligible down payments below 20%
 - Principal, interest, mortgage balance, and equity breakdowns
-- Flat-rent projection with no annual rent increase
+- Five-year mortgage renewal-rate scenarios with payment recalculation
+- Optional annual rent-increase projection
 
 ## Local development
 

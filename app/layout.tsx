@@ -21,19 +21,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = host ? `${protocol}://${host}` : "http://localhost:3000"
 
   return {
-    title: "Home Decision Calculator | Buy vs. Rent",
+    title: "Home Cash-Flow Calculator | Buy vs. Rent",
     description:
-      "Compare the monthly cost of buying and renting, explore your mortgage payment, and see home equity build year by year.",
+      "Compare simplified buying and renting cash flow, explore your mortgage payment, and estimate home equity year by year.",
     openGraph: {
-      title: "Buy or rent? See the full picture.",
-      description: "Monthly costs. Mortgage payoff. Year-by-year clarity.",
+      title: "Compare buying and renting cash flow.",
+      description: "Monthly costs, mortgage payoff, and estimated equity.",
       images: [{ url: `${origin}/og.png`, width: 1664, height: 960 }],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: "Buy or rent? See the full picture.",
-      description: "Monthly costs. Mortgage payoff. Year-by-year clarity.",
+      title: "Compare buying and renting cash flow.",
+      description: "Monthly costs, mortgage payoff, and estimated equity.",
       images: [`${origin}/og.png`],
     },
   }

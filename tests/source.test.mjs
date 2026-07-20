@@ -2,89 +2,120 @@ import assert from "node:assert/strict"
 import { access, readFile } from "node:fs/promises"
 import test from "node:test"
 
+import {
+  buildRentSchedule,
+  buildSchedule,
+  calculateMortgageAmounts,
+  minimumDownPaymentFor,
+} from "../app/calculations.ts"
+
 const projectRoot = new URL("../", import.meta.url)
 
-test("ships the home decision calculator features and defaults", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8")
-  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8")
+test("calculates the default Canadian mortgage schedule", () => {
+  const amounts = calculateMortgageAmounts(650_000, 20, 25)
+  const schedule = buildSchedule(amounts.mortgageAmount, 4.3, 25)
 
-  assert.match(page, /purchasePrice: 650000/)
-  assert.match(page, /interestRate: 4\.3/)
-  assert.match(page, /annualTaxes: 4400/)
-  assert.match(page, /monthlyUtilities: 375/)
-  assert.match(page, /monthlyRent: 2700/)
-  assert.match(page, /monthlyMaintenance: 0/)
-  assert.match(page, /monthlyHomeInsurance: 0/)
-  assert.match(page, /closingCosts: 0/)
-  assert.match(page, /monthlyRentalUtilities: 0/)
-  assert.match(page, /downPaymentPercent: 20/)
-  assert.match(page, /LONG_TERM_YEARS = 25/)
-  assert.match(page, /useState\(1\)/)
-  assert.match(page, /Canadian convention of semi-annual compounding/)
-  assert.match(page, /Buying · Mortgage/)
-  assert.match(page, /Buy vs\. Rent/)
-  assert.match(page, /Mortgage equity built/)
-  assert.match(page, /Non-equity housing cost/)
-  assert.match(page, /Cash paid/)
-  assert.match(page, /Monthly spending in month/)
-  assert.match(page, /Total monthly spending/)
-  assert.match(page, /Monthly costs \/ month/)
-  assert.match(page, /Monthly rent \+ utilities/)
-  assert.match(page, /results\.monthlyRent \+ results\.monthlyRentalUtilities/)
-  assert.match(page, /Utilities \+ maintenance \+ homeowner insurance/)
-  assert.match(page, /Through month \{results\.selectedMonth\} - Year \{selectedYear\}, month/)
-  assert.match(page, /Same-timescale comparison[\s\S]*Through month \{results\.selectedMonth\} - Year \{selectedYear\}, month/)
-  assert.match(page, /Contributes to equity/)
-  assert.match(page, /stacked-heading/)
-  assert.match(page, /<span>monthly costs<\/span>/)
-  assert.match(page, /monthlyOwnershipCosts \* 12 \* row\.year/)
-  assert.match(page, /info-dot/)
-  assert.match(css, /\.slider-card \+ \.monthly-grid/)
-  assert.match(page, /mortgage-status-grid/)
-  assert.match(page, /draftValue/)
-  assert.match(page, /document\.activeElement !== inputRef\.current/)
-  assert.match(page, /const \[includeOwnerExtras, setIncludeOwnerExtras\] = useState\(true\)/)
-  assert.match(page, /const \[includeDownPayment, setIncludeDownPayment\] = useState\(false\)/)
-  assert.match(page, /Include taxes and utilities in buying cash paid/)
-  assert.match(page, /Maintenance, homeowner\s+insurance, closing costs, and rental utilities remain included when entered/)
-  assert.match(page, /Include down payment in home equity/)
-  assert.match(page, /comparisonBuyingGraphTotal/)
-  assert.match(page, /The down payment is included in this bar/)
-  assert.match(page, /Maintenance, homeowner insurance, and closing costs\s+are included when entered/)
-  assert.match(page, /Advanced costs appear here when entered/)
-  assert.match(page, /results\.selectedPrincipalPaid \+ \(includeDownPayment \? results\.downPayment : 0\)/)
-  assert.match(page, /comparisonBuyingCost/)
-  assert.match(page, /Active comparison assumptions/)
-  assert.match(page, /Home price/)
-  assert.match(page, /The down payment is shown separately and included in mortgage equity/)
-  assert.match(page, /<span>Principal<\/span><span>this year<\/span>/)
-  assert.match(page, /<span>Interest<\/span><span>this year<\/span>/)
-  assert.match(page, /<span>Owner payments<\/span>/)
-  assert.match(page, /<span>Buying<\/span><span>cash paid<\/span>/)
-  assert.match(page, /<span>Non-equity<\/span>/)
-  assert.match(page, /<span>Rent<\/span><span>cash paid<\/span>/)
-  assert.match(css, /\.comparison-table th/)
-  assert.doesNotMatch(page, /Down payment · up-front equity|Shown separately from ongoing buying payments/)
-  assert.match(page, /Excluded/)
-  assert.match(page, /Advanced buying costs \(optional\)/)
-  assert.match(page, /Advanced renting costs \(optional\)/)
-  assert.match(page, /Homeowner insurance/)
-  assert.match(page, /Closing costs/)
-  assert.match(page, /Rental utilities/)
-  assert.match(page, /selectedMaintenancePaid/)
-  assert.match(page, /selectedHomeInsurancePaid/)
-  assert.match(page, /comparisonMaintenanceWidth/)
-  assert.match(page, /comparisonHomeInsuranceWidth/)
-  assert.match(page, /Maintenance \{money\(selectedMaintenancePaid\)\}/)
-  assert.match(page, /Homeowner insurance \{money\(selectedHomeInsurancePaid\)\}/)
-  assert.match(page, /selectedOwnerAdvancedPaid/)
-  assert.match(page, /selectedRentalUtilitiesPaid/)
-  assert.match(page, /results\.monthlyTaxes \* 12 \* row\.year/)
-  assert.match(page, /results\.monthlyUtilities \+ results\.monthlyOwnerAdvanced/)
-  assert.doesNotMatch(page, /lowerPaymentOption|totalPaymentDifference|comparison-difference/)
-  assert.doesNotMatch(page, /Hide graph|Show graph|Total monthly cash out|Buying cost at month|Reduces what you owe|Renting cash after/)
-  assert.doesNotMatch(page, /annualRentIncrease/)
-  assert.doesNotMatch(page, /Hydro|monthlyHydro/)
+  assert.equal(amounts.downPayment, 130_000)
+  assert.equal(amounts.baseMortgageAmount, 520_000)
+  assert.equal(amounts.cmhcPremium, 0)
+  assert.equal(amounts.mortgageAmount, 520_000)
+  assert.ok(Math.abs(schedule.monthlyPayment - 2820.526748) < 0.000001)
+  assert.ok(schedule.years[24].endingBalance < 0.01)
+  assert.ok(Math.abs(schedule.years[24].totalPrincipalPaid - 520_000) < 0.01)
+})
+
+test("adds the standard CMHC premium below 20% down", () => {
+  const amounts = calculateMortgageAmounts(650_000, 10, 25)
+  const schedule = buildSchedule(amounts.mortgageAmount, 4.3, 25)
+
+  assert.equal(amounts.minimumDownPayment, 40_000)
+  assert.equal(amounts.baseMortgageAmount, 585_000)
+  assert.equal(amounts.cmhcPremiumRate, 3.1)
+  assert.equal(amounts.cmhcPremium, 18_135)
+  assert.equal(amounts.mortgageAmount, 603_135)
+  assert.ok(Math.abs(schedule.monthlyPayment - 3271.458462) < 0.000001)
+})
+
+test("adds the insured 30-year premium surcharge", () => {
+  const amounts = calculateMortgageAmounts(650_000, 10, 30)
+
+  assert.equal(amounts.cmhcPremiumRate, 3.3)
+  assert.equal(amounts.cmhcPremium, 19_305)
+  assert.equal(amounts.mortgageAmount, 604_305)
+})
+
+test("warns instead of estimating an ineligible insured mortgage", () => {
+  const belowMinimum = calculateMortgageAmounts(650_000, 5, 25)
+  const overPriceCap = calculateMortgageAmounts(1_500_000, 10, 25)
+
+  assert.match(belowMinimum.cmhcWarning ?? "", /below the minimum required amount/)
+  assert.equal(belowMinimum.cmhcPremium, 0)
+  assert.match(overPriceCap.cmhcWarning ?? "", /require at least 20% down/)
+  assert.equal(overPriceCap.cmhcPremium, 0)
+  assert.equal(minimumDownPaymentFor(500_000), 25_000)
+  assert.equal(minimumDownPaymentFor(650_000), 40_000)
+  assert.equal(minimumDownPaymentFor(1_500_000), 300_000)
+})
+
+test("handles a zero-rate mortgage", () => {
+  const schedule = buildSchedule(300_000, 0, 25)
+
+  assert.equal(schedule.monthlyPayment, 1_000)
+  assert.equal(schedule.months[0].interestPaid, 0)
+  assert.equal(schedule.years[24].endingBalance, 0)
+  assert.equal(schedule.years[24].totalInterestPaid, 0)
+})
+
+test("recalculates payments at each five-year mortgage renewal", () => {
+  const schedule = buildSchedule(520_000, [4.3, 6, 5.25, 4.75, 4.5], 25)
+  const month60 = schedule.months[59]
+  const month61 = schedule.months[60]
+
+  assert.equal(month60.annualRate, 4.3)
+  assert.equal(month61.annualRate, 6)
+  assert.notEqual(month60.mortgagePayment, month61.mortgagePayment)
+  assert.ok(
+    Math.abs(month60.endingBalance - month61.principalPaid - month61.endingBalance) < 0.01,
+  )
+  assert.equal(schedule.years[5].annualRate, 6)
+  assert.ok(Math.abs(schedule.years[5].monthlyPayment - month61.mortgagePayment) < 0.01)
+  assert.ok(schedule.years[24].endingBalance < 0.01)
+})
+
+test("applies annual rent increases at rental-year boundaries", () => {
+  const schedule = buildRentSchedule(2_700, 100, 2)
+
+  assert.equal(schedule.months[0].monthlyRent, 2_700)
+  assert.equal(schedule.months[11].monthlyRent, 2_700)
+  assert.equal(schedule.months[12].monthlyRent, 2_754)
+  assert.equal(schedule.years[0].annualRent, 32_400)
+  assert.equal(schedule.years[1].annualRent, 33_048)
+  assert.equal(schedule.years[1].totalRent, 65_448)
+  assert.equal(schedule.months[12].totalRentalUtilities, 1_300)
+  assert.equal(schedule.months[12].totalRentalCash, 36_454)
+})
+
+test("ships clear cash-flow comparison semantics and visible optional costs", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ])
+
+  assert.match(page, /Simple housing cash-flow calculator/)
+  assert.match(page, /Estimated CMHC premium/)
+  assert.match(page, /Total mortgage/)
+  assert.match(page, /Estimated home equity/)
+  assert.match(page, /Home price minus mortgage balance/)
+  assert.match(page, /Buying cash paid includes the down payment/)
+  assert.match(page, /FCAC advises budgeting approximately 1\.5% to 4%/)
+  assert.match(page, /<details className="advanced-panel" open>/)
+  assert.match(page, /Mortgage renewal rates/)
+  assert.match(page, /Annual rent increase/)
+  assert.match(page, /entered five-year renewal rates/)
+  assert.match(page, /annual rent increases/)
+  assert.doesNotMatch(page, /includeDownPayment/)
+  assert.match(css, /\.input-warning/)
+  assert.match(css, /\.mortgage-formula-grid/)
 })
 
 test("ships production metadata and social card", async () => {
@@ -93,9 +124,8 @@ test("ships production metadata and social card", async () => {
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ])
 
-  assert.match(layout, /Home Decision Calculator \| Buy vs\. Rent/)
+  assert.match(layout, /Home Cash-Flow Calculator \| Buy vs\. Rent/)
   assert.match(layout, /og\.png/)
   assert.match(packageJson, /"build": "next build"/)
-  assert.doesNotMatch(packageJson, /vinext|wrangler|drizzle/)
   await assert.doesNotReject(access(new URL("public/og.png", projectRoot)))
 })

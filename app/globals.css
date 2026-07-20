@@ -256,6 +256,9 @@ footer {
 }
 
 .field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 10px 0;
   color: var(--muted);
   font-size: 0.68rem;
@@ -321,6 +324,10 @@ footer {
   border: 1px solid var(--line);
 }
 
+.mortgage-formula-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .formula-grid > div {
   padding: 13px;
   background: var(--blue-soft);
@@ -375,6 +382,18 @@ footer {
   line-height: 1.5;
 }
 
+.input-warning {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #f59e0b;
+  border-radius: 5px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
 .advanced-panel {
   margin-top: 16px;
   border: 1px solid var(--line-strong);
@@ -408,6 +427,28 @@ footer {
   color: var(--muted);
   font-size: 0.65rem;
   line-height: 1.45;
+}
+
+.renewal-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.renewal-section h3 {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.renewal-section p {
+  margin: 5px 0 12px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 1.45;
+}
+
+.renewal-rate-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .results-book {
@@ -992,6 +1033,10 @@ footer {
   background: #fce7f3;
 }
 
+.comparison-upfront.cmhc-upfront {
+  background: #e0f2fe;
+}
+
 .comparison-graph {
   padding: 20px;
 }
@@ -1253,11 +1298,11 @@ tbody tr:hover {
 }
 
 .buying-table {
-  min-width: 980px;
+  min-width: 1160px;
 }
 
 .buying-table.with-advanced-costs {
-  min-width: 1040px;
+  min-width: 1220px;
 }
 
 .comparison-table {
