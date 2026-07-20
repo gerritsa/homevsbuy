@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Next.js and Vinext build output
+.next/
+dist/
+.wrangler/
+.vinext/
+
+# Vercel project metadata
+.vercel/
+
+# Local environment files
+.env*
+!.env.example
+
+# Generated files
+*.tsbuildinfo
+
+# Operating system files
+.DS_Store
