@@ -361,6 +361,9 @@ export default function Home() {
     principalVsInterestTotal === 0 ? 0 : (results.selectedInterestPaid / principalVsInterestTotal) * 100
   const selectedPrincipalPercent =
     principalVsInterestTotal === 0 ? 0 : (results.selectedPrincipalPaid / principalVsInterestTotal) * 100
+  const selectedYear = Math.ceil(results.selectedMonth / 12)
+  const selectedMonthInYear = ((results.selectedMonth - 1) % 12) + 1
+  const monthlyOwnershipCosts = results.monthlyUtilities + results.monthlyOwnerAdvanced
   const selectedOwnerExtras =
     (results.monthlyTaxes + results.monthlyUtilities) * results.selectedMonth
   const selectedMaintenancePaid = results.monthlyMaintenance * results.selectedMonth
@@ -638,8 +641,18 @@ export default function Home() {
                   <strong>{preciseMoney(results.monthlyTaxes)}</strong>
                 </div>
                 <div className="monthly-card">
-                  <span>Utilities / month</span>
-                  <strong>{preciseMoney(results.monthlyUtilities)}</strong>
+                  <span className="label-with-info">
+                    Monthly costs / month
+                    <i
+                      aria-label="Monthly costs include utilities, maintenance, and homeowner insurance when entered."
+                      className="info-dot"
+                      role="img"
+                      title="Includes utilities, maintenance, and homeowner insurance when entered."
+                    >
+                      i
+                    </i>
+                  </span>
+                  <strong>{preciseMoney(monthlyOwnershipCosts)}</strong>
                 </div>
                 <div className="monthly-card total">
                   <span>Monthly total</span>
@@ -659,19 +672,11 @@ export default function Home() {
                   note="Cost of borrowing"
                 />
                 <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Municipal taxes" />
-                <DetailRow amount={preciseMoney(results.monthlyUtilities)} label="Utilities" />
-                {results.monthlyMaintenance > 0 ? (
-                  <DetailRow
-                    amount={preciseMoney(results.monthlyMaintenance)}
-                    label="Maintenance"
-                  />
-                ) : null}
-                {results.monthlyHomeInsurance > 0 ? (
-                  <DetailRow
-                    amount={preciseMoney(results.monthlyHomeInsurance)}
-                    label="Homeowner insurance"
-                  />
-                ) : null}
+                <DetailRow
+                  amount={preciseMoney(monthlyOwnershipCosts)}
+                  label="Monthly costs"
+                  note="Utilities + maintenance + homeowner insurance"
+                />
                 <DetailRow
                   amount={preciseMoney(results.selectedMonthlyOwnerTotal)}
                   emphasis
@@ -692,7 +697,10 @@ export default function Home() {
                     <p className="card-kicker">Mortgage graph</p>
                     <h3>Where your mortgage payments went</h3>
                   </div>
-                  <span>Through month {results.selectedMonth}</span>
+                  <span>
+                    Through month {results.selectedMonth} - Year {selectedYear}, month{" "}
+                    {selectedMonthInYear}
+                  </span>
                 </div>
                 <div className="payment-total">
                   <span>Total mortgage payments to date</span>
@@ -783,9 +791,9 @@ export default function Home() {
                     <th>Cumulative principal</th>
                     <th>Cumulative interest</th>
                     <th>Cumulative taxes</th>
-                    <th>Cumulative utilities</th>
-                    {results.monthlyMaintenance > 0 ? <th>Cumulative maintenance</th> : null}
-                    {results.monthlyHomeInsurance > 0 ? <th>Cumulative insurance</th> : null}
+                    <th title="Utilities, maintenance, and homeowner insurance when entered.">
+                      Cumulative monthly costs
+                    </th>
                     {results.closingCosts > 0 ? <th>Closing costs</th> : null}
                     <th>Owner payments (excl. down payment)</th>
                     <th>Mortgage left</th>
@@ -801,13 +809,7 @@ export default function Home() {
                       <td>{money(row.totalPrincipalPaid)}</td>
                       <td>{money(row.totalInterestPaid)}</td>
                       <td>{money(results.monthlyTaxes * 12 * row.year)}</td>
-                      <td>{money(results.monthlyUtilities * 12 * row.year)}</td>
-                      {results.monthlyMaintenance > 0 ? (
-                        <td>{money(results.monthlyMaintenance * 12 * row.year)}</td>
-                      ) : null}
-                      {results.monthlyHomeInsurance > 0 ? (
-                        <td>{money(results.monthlyHomeInsurance * 12 * row.year)}</td>
-                      ) : null}
+                      <td>{money(monthlyOwnershipCosts * 12 * row.year)}</td>
                       {results.closingCosts > 0 ? <td>{money(results.closingCosts)}</td> : null}
                       <td>
                         {money(

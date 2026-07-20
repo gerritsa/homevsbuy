@@ -340,6 +340,27 @@ footer {
   font-weight: 720;
 }
 
+.monthly-card .label-with-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.info-dot {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .formula-grid strong,
 .monthly-card strong,
 .selected-grid strong,
