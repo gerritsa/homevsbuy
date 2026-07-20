@@ -761,7 +761,7 @@ footer {
   line-height: 1.4;
 }
 
-.comparison-summary {
+.comparison-assumptions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 16px;
@@ -769,57 +769,143 @@ footer {
   border-left: 1px solid var(--line-strong);
 }
 
-.comparison-summary.with-down-payment {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.comparison-card {
-  min-height: 108px;
-  padding: 14px;
+.comparison-assumptions > div {
+  padding: 10px 12px;
   border-right: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line-strong);
-  background: white;
+  background: var(--sheet);
 }
 
-.comparison-card > span,
-.comparison-card > small {
+.comparison-assumptions span,
+.comparison-assumptions strong {
   display: block;
+}
+
+.comparison-assumptions span {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
 }
 
-.comparison-card > strong {
-  display: block;
-  margin-top: 7px;
-  font-size: 1.25rem;
+.comparison-assumptions strong {
+  margin-top: 4px;
+  font-size: 0.82rem;
 }
 
-.comparison-card > small {
-  margin-top: 6px;
-  color: #8993a3;
-  font-size: 0.62rem;
-  font-weight: 600;
+.comparison-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
 }
 
-.comparison-card.buy-total {
+.comparison-side {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: white;
+}
+
+.comparison-side-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--line-strong);
   background: var(--blue-soft);
 }
 
-.comparison-card.rent-total {
+.renting-side .comparison-side-heading {
   background: #ede9fe;
 }
 
-.comparison-card.down-payment-total {
-  background: #fef3c7;
+.comparison-side-heading > strong {
+  font-size: 0.82rem;
 }
 
-.comparison-card.equity-total {
+.comparison-side-heading > span {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.comparison-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.comparison-metric {
+  min-height: 128px;
+  padding: 13px;
+  border-right: 1px solid var(--line);
+}
+
+.comparison-metric:last-child {
+  border-right: 0;
+}
+
+.comparison-metric > span,
+.comparison-metric > strong,
+.comparison-metric > small {
+  display: block;
+}
+
+.comparison-metric > span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 750;
+}
+
+.comparison-metric > strong {
+  margin-top: 8px;
+  font-size: 1.05rem;
+}
+
+.comparison-metric > small {
+  margin-top: 7px;
+  color: #8993a3;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.equity-metric {
   background: var(--principal-soft);
 }
 
-.comparison-card.no-equity {
-  background: var(--sheet);
+.cost-metric {
+  background: var(--interest-soft);
+}
+
+.comparison-upfront {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 13px;
+  border-top: 1px solid var(--line-strong);
+  background: #fef3c7;
+}
+
+.comparison-upfront span,
+.comparison-upfront strong,
+.comparison-upfront small {
+  display: block;
+}
+
+.comparison-upfront > span > strong {
+  font-size: 0.68rem;
+}
+
+.comparison-upfront small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.59rem;
+}
+
+.comparison-upfront > strong {
+  font-size: 0.94rem;
 }
 
 .comparison-graph {
@@ -1036,7 +1122,12 @@ tbody tr:hover {
 }
 
 .comparison-table {
-  min-width: 940px;
+  min-width: 1100px;
+}
+
+.excluded-cell {
+  color: var(--muted);
+  font-style: italic;
 }
 
 footer {
@@ -1060,9 +1151,8 @@ footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .comparison-summary,
-  .comparison-summary.with-down-payment {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .comparison-overview {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1106,9 +1196,19 @@ footer {
   .monthly-grid,
   .selected-grid,
   .payment-split-cards,
-  .comparison-summary,
-  .comparison-summary.with-down-payment {
+  .comparison-assumptions,
+  .comparison-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .comparison-metric {
+    min-height: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .comparison-metric:last-child {
+    border-bottom: 0;
   }
 
   .formula-grid > div + div {
