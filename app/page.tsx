@@ -664,7 +664,7 @@ export default function Home() {
                 <DetailRow
                   amount={preciseMoney(results.selectedMonthPrincipal)}
                   label="Principal this month"
-                  note="Reduces what you owe"
+                  note="Contributes to equity"
                 />
                 <DetailRow
                   amount={preciseMoney(results.selectedMonthInterest)}
@@ -786,18 +786,28 @@ export default function Home() {
                 <thead>
                   <tr>
                     <th>Year</th>
-                    <th>Principal this year</th>
-                    <th>Interest this year</th>
-                    <th>Cumulative principal</th>
-                    <th>Cumulative interest</th>
-                    <th>Cumulative taxes</th>
+                    <th><span className="stacked-heading"><span>Principal</span><span>this year</span></span></th>
+                    <th><span className="stacked-heading"><span>Interest</span><span>this year</span></span></th>
+                    <th><span className="stacked-heading"><span>Cumulative</span><span>principal</span></span></th>
+                    <th><span className="stacked-heading"><span>Cumulative</span><span>interest</span></span></th>
+                    <th><span className="stacked-heading"><span>Cumulative</span><span>taxes</span></span></th>
                     <th title="Utilities, maintenance, and homeowner insurance when entered.">
-                      Cumulative monthly costs
+                      <span className="stacked-heading">
+                        <span>Cumulative</span>
+                        <span>monthly costs</span>
+                      </span>
                     </th>
-                    {results.closingCosts > 0 ? <th>Closing costs</th> : null}
-                    <th>Owner payments (excl. down payment)</th>
-                    <th>Mortgage left</th>
-                    <th>Mortgage repaid</th>
+                    {results.closingCosts > 0 ? (
+                      <th><span className="stacked-heading"><span>Closing</span><span>costs</span></span></th>
+                    ) : null}
+                    <th>
+                      <span className="stacked-heading">
+                        <span>Owner payments</span>
+                        <span>(excl. down payment)</span>
+                      </span>
+                    </th>
+                    <th><span className="stacked-heading"><span>Mortgage</span><span>left</span></span></th>
+                    <th><span className="stacked-heading"><span>Mortgage</span><span>repaid</span></span></th>
                   </tr>
                 </thead>
                 <tbody>

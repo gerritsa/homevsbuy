@@ -1213,6 +1213,20 @@ th {
   text-transform: uppercase;
 }
 
+.buying-table th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.stacked-heading,
+.stacked-heading span {
+  display: block;
+}
+
+.stacked-heading {
+  line-height: 1.18;
+}
+
 tbody tr:nth-child(even) {
   background: #fbfcff;
 }
@@ -1234,11 +1248,11 @@ tbody tr:hover {
 }
 
 .buying-table {
-  min-width: 1180px;
+  min-width: 980px;
 }
 
 .buying-table.with-advanced-costs {
-  min-width: 1500px;
+  min-width: 1040px;
 }
 
 .comparison-table {
