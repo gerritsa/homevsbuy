@@ -118,6 +118,11 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(page, /table-group-renting/)
   assert.match(page, /Mortgage interest/)
   assert.match(page, /Costs that do not build equity/)
+  assert.match(page, /The Taxes \+ utilities column adds maintenance and\s+homeowner insurance only when entered/)
+  assert.match(page, /\+ maintenance/)
+  assert.match(page, /\+ insurance/)
+  assert.doesNotMatch(page, /table-maintenance/)
+  assert.doesNotMatch(page, /table-home-insurance/)
   assert.match(page, /Municipal taxes\/month/)
   assert.match(page, /Cumulative cost month/)
   assert.match(page, /function InfoButton/)
@@ -128,6 +133,10 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(page, /upfrontBuyingCosts/)
   assert.match(page, /table-down-payment/)
   assert.match(page, /table-rent/)
+  assert.ok(
+    page.indexOf('className="table-owner-extras"') <
+      page.indexOf('className="table-non-equity"'),
+  )
   assert.match(page, /FCAC advises budgeting approximately 1\.5% to 4%/)
   assert.match(page, /<details className="advanced-panel" open>/)
   assert.match(page, /Mortgage renewal rates/)

@@ -1402,16 +1402,6 @@ tbody tr:hover {
   background: color-mix(in srgb, var(--tax) 12%, white);
 }
 
-.comparison-table th.table-maintenance,
-.comparison-table td.table-maintenance {
-  background: color-mix(in srgb, var(--maintenance) 12%, white);
-}
-
-.comparison-table th.table-home-insurance,
-.comparison-table td.table-home-insurance {
-  background: color-mix(in srgb, var(--home-insurance) 12%, white);
-}
-
 .comparison-table th.table-closing,
 .comparison-table td.table-closing {
   background: color-mix(in srgb, var(--closing-costs) 12%, white);

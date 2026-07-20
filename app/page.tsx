@@ -360,8 +360,6 @@ export default function Home() {
   const comparisonBuyingTableColumnCount =
     7 +
     (results.cmhcPremium > 0 ? 1 : 0) +
-    (results.monthlyMaintenance > 0 ? 1 : 0) +
-    (results.monthlyHomeInsurance > 0 ? 1 : 0) +
     (results.closingCosts > 0 ? 1 : 0)
   const buyingTotalBreakdown = [
     "principal",
@@ -1374,7 +1372,9 @@ export default function Home() {
                   Compare cumulative buying payments with cumulative rent. Principal is shown
                   separately because it reduces the mortgage. The down payment is shown as a
                   separate up-front flow and contributes to equity. Rent cash paid includes rental
-                  utilities when entered. Taxes and utilities follow the checkbox above.
+                  utilities when entered. The Taxes + utilities column adds maintenance and
+                  homeowner insurance only when entered; taxes and utilities can still be excluded
+                  with the checkbox above.
                 </p>
               </div>
             </div>
@@ -1406,20 +1406,20 @@ export default function Home() {
                       <th className="table-cmhc"><span className="stacked-heading"><span>CMHC</span><span>premium</span></span></th>
                     ) : null}
                     <th className="table-principal"><span className="stacked-heading"><span>Principal</span><span>paid</span></span></th>
+                    <th className="table-interest"><span className="stacked-heading"><span>Mortgage</span><span>interest</span></span></th>
+                    <th className="table-owner-extras">
+                      <span className="stacked-heading">
+                        <span>Taxes + utilities</span>
+                        {results.monthlyMaintenance > 0 ? <span>+ maintenance</span> : null}
+                        {results.monthlyHomeInsurance > 0 ? <span>+ insurance</span> : null}
+                      </span>
+                    </th>
                     <th className="table-non-equity">
                       <span className="stacked-heading">
                         <span>Costs not</span>
                         <span>building equity</span>
                       </span>
                     </th>
-                    <th className="table-interest"><span className="stacked-heading"><span>Mortgage</span><span>interest</span></span></th>
-                    <th className="table-owner-extras"><span className="stacked-heading"><span>Taxes +</span><span>utilities</span></span></th>
-                    {results.monthlyMaintenance > 0 ? (
-                      <th className="table-maintenance"><span className="stacked-heading"><span>Main-</span><span>tenance</span></span></th>
-                    ) : null}
-                    {results.monthlyHomeInsurance > 0 ? (
-                      <th className="table-home-insurance"><span className="stacked-heading"><span>Homeowner</span><span>insurance</span></span></th>
-                    ) : null}
                     {results.closingCosts > 0 ? (
                       <th className="table-closing"><span className="stacked-heading"><span>Closing</span><span>costs</span></span></th>
                     ) : null}
@@ -1428,22 +1428,26 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.years.map((row, index) => (
-                    <tr key={row.year}>
+                  {results.years.map((row, index) => {
+                    const yearlyTaxesUtilities =
+                      (results.monthlyTaxes + results.monthlyUtilities) * 12 * row.year
+                    const yearlyMaintenanceInsurance =
+                      (results.monthlyMaintenance + results.monthlyHomeInsurance) *
+                      12 *
+                      row.year
+                    const yearlyOwnershipCosts =
+                      (includeOwnerExtras ? yearlyTaxesUtilities : 0) +
+                      yearlyMaintenanceInsurance
+
+                    return (
+                      <tr key={row.year}>
                       <td><strong>{row.year}</strong></td>
                       <td className="table-down-payment">{money(results.downPayment)}</td>
                       <td className="table-buying-cash">
                         {money(
                           row.totalPrincipalPaid +
                             row.totalInterestPaid +
-                            (includeOwnerExtras
-                              ? (results.monthlyTaxes + results.monthlyUtilities) *
-                                12 *
-                                row.year
-                              : 0) +
-                            (results.monthlyMaintenance + results.monthlyHomeInsurance) *
-                              12 *
-                              row.year +
+                            yearlyOwnershipCosts +
                             results.closingCosts,
                         )}
                       </td>
@@ -1454,47 +1458,24 @@ export default function Home() {
                         <td className="table-cmhc">{money(results.cmhcPremium)}</td>
                       ) : null}
                       <td className="table-principal">{money(row.totalPrincipalPaid)}</td>
-                      <td className="table-non-equity">
-                        {money(
-                          results.cmhcPremium +
-                            row.totalInterestPaid +
-                            (includeOwnerExtras
-                              ? (results.monthlyTaxes + results.monthlyUtilities) *
-                                12 *
-                                row.year
-                              : 0) +
-                            (results.monthlyMaintenance + results.monthlyHomeInsurance) *
-                              12 *
-                              row.year +
-                            results.closingCosts,
-                        )}
-                      </td>
                       <td className="table-interest">{money(row.totalInterestPaid)}</td>
                       <td
                         className={
-                          includeOwnerExtras
+                          includeOwnerExtras || yearlyMaintenanceInsurance > 0
                             ? "table-owner-extras"
                             : "table-owner-extras excluded-cell"
                         }
                       >
-                        {includeOwnerExtras
-                          ? money(
-                              (results.monthlyTaxes + results.monthlyUtilities) *
-                                12 *
-                                row.year,
-                            )
-                          : "Excluded"}
+                        {yearlyOwnershipCosts > 0 ? money(yearlyOwnershipCosts) : "Excluded"}
                       </td>
-                      {results.monthlyMaintenance > 0 ? (
-                        <td className="table-maintenance">
-                          {money(results.monthlyMaintenance * 12 * row.year)}
-                        </td>
-                      ) : null}
-                      {results.monthlyHomeInsurance > 0 ? (
-                        <td className="table-home-insurance">
-                          {money(results.monthlyHomeInsurance * 12 * row.year)}
-                        </td>
-                      ) : null}
+                      <td className="table-non-equity">
+                        {money(
+                          results.cmhcPremium +
+                            row.totalInterestPaid +
+                            yearlyOwnershipCosts +
+                            results.closingCosts,
+                        )}
+                      </td>
                       {results.closingCosts > 0 ? (
                         <td className="table-closing">{money(results.closingCosts)}</td>
                       ) : null}
@@ -1502,8 +1483,9 @@ export default function Home() {
                         {money(results.rentYears[index]?.totalRentalCash ?? 0)}
                       </td>
                       <td className="table-rent-equity">$0</td>
-                    </tr>
-                  ))}
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
