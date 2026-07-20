@@ -530,15 +530,18 @@ footer {
   border-left: 1px solid var(--line-strong);
 }
 
+.monthly-costs,
 .upfront-costs {
   margin-top: 18px;
 }
 
+.monthly-costs h3,
 .upfront-costs h3 {
   margin: 0;
   font-size: 0.78rem;
 }
 
+.monthly-detail-sheet,
 .upfront-detail-sheet {
   margin-top: 8px;
 }

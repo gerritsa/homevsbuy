@@ -673,29 +673,32 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="detail-sheet">
-                <DetailRow
-                  amount={preciseMoney(results.selectedMonthPrincipal)}
-                  label="Principal this month"
-                  note="Contributes to equity"
-                />
-                <DetailRow
-                  amount={preciseMoney(results.selectedMonthInterest)}
-                  label="Mortgage interest this month"
-                  note="Cost of mortgage borrowing"
-                />
-                <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Municipal taxes" />
-                <DetailRow
-                  amount={preciseMoney(monthlyOwnershipCosts)}
-                  label="Monthly costs"
-                  note="Utilities + maintenance + homeowner insurance"
-                />
-                <DetailRow
-                  amount={preciseMoney(results.selectedMonthlyOwnerTotal)}
-                  emphasis
-                  label="Total monthly spending"
-                />
-              </div>
+              <section className="monthly-costs" aria-label="Monthly buying costs">
+                <h3>Monthly costs</h3>
+                <div className="detail-sheet monthly-detail-sheet">
+                  <DetailRow
+                    amount={preciseMoney(results.selectedMonthPrincipal)}
+                    label="Principal this month"
+                    note="Contributes to equity"
+                  />
+                  <DetailRow
+                    amount={preciseMoney(results.selectedMonthInterest)}
+                    label="Mortgage interest this month"
+                    note="Cost of mortgage borrowing"
+                  />
+                  <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Municipal taxes" />
+                  <DetailRow
+                    amount={preciseMoney(monthlyOwnershipCosts)}
+                    label="Monthly costs"
+                    note="Utilities + maintenance + homeowner insurance"
+                  />
+                  <DetailRow
+                    amount={preciseMoney(results.selectedMonthlyOwnerTotal)}
+                    emphasis
+                    label="Total monthly spending"
+                  />
+                </div>
+              </section>
 
               <section className="upfront-costs" aria-label="Upfront buying costs">
                 <h3>Upfront costs</h3>
@@ -708,7 +711,6 @@ export default function Home() {
                   <DetailRow
                     amount={money(results.closingCosts)}
                     label="Closing costs"
-                    note="Entered advanced cost"
                   />
                   <DetailRow
                     amount={money(upfrontBuyingCosts)}
@@ -972,7 +974,7 @@ export default function Home() {
                   </strong>
                 </div>
                 <div className="monthly-card total">
-                  <span>Cash paid through month {results.selectedMonth}</span>
+                  <span>Cumulative cost month {results.selectedMonth}</span>
                   <strong>{money(results.selectedRentCash)}</strong>
                 </div>
               </div>
@@ -998,15 +1000,6 @@ export default function Home() {
                 }
               >
                 <thead>
-                  <tr className="comparison-table-groups">
-                    <th aria-hidden="true" className="table-group-spacer" />
-                    <th className="table-group-buying" colSpan={comparisonBuyingTableColumnCount}>
-                      Buying
-                    </th>
-                    <th className="table-group-renting" colSpan={2}>
-                      Renting
-                    </th>
-                  </tr>
                   <tr>
                     <th>Year</th>
                     <th>Monthly rent</th>
@@ -1439,6 +1432,15 @@ export default function Home() {
                 }
               >
                 <thead>
+                  <tr className="comparison-table-groups">
+                    <th aria-hidden="true" className="table-group-spacer" />
+                    <th className="table-group-buying" colSpan={comparisonBuyingTableColumnCount}>
+                      Buying
+                    </th>
+                    <th className="table-group-renting" colSpan={2}>
+                      Renting
+                    </th>
+                  </tr>
                   <tr>
                     <th>Year</th>
                     <th className="table-down-payment"><span className="stacked-heading"><span>Down</span><span>payment</span></span></th>
