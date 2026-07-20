@@ -311,18 +311,20 @@ export default function Home() {
   const selectedOwnerExtras =
     (results.monthlyTaxes + results.monthlyUtilities) * results.selectedMonth
   const comparisonBuyingTotal =
-    principalVsInterestTotal +
-    (includeOwnerExtras ? selectedOwnerExtras : 0) +
-    (includeDownPayment ? results.downPayment : 0)
+    principalVsInterestTotal + (includeOwnerExtras ? selectedOwnerExtras : 0)
   const comparisonHomeEquity =
     results.selectedPrincipalPaid + (includeDownPayment ? results.downPayment : 0)
   const buyingTotalBreakdown = [
     "Principal",
     "interest",
     ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
-    ...(includeDownPayment ? ["down payment"] : []),
   ].join(" + ")
-  const comparisonMax = Math.max(1, comparisonBuyingTotal, results.selectedRentCash)
+  const comparisonMax = Math.max(
+    1,
+    comparisonBuyingTotal,
+    includeDownPayment ? results.downPayment : 0,
+    results.selectedRentCash,
+  )
   const comparisonPrincipalWidth = (results.selectedPrincipalPaid / comparisonMax) * 100
   const comparisonInterestWidth = (results.selectedInterestPaid / comparisonMax) * 100
   const comparisonOwnerExtrasWidth =
@@ -842,18 +844,31 @@ export default function Home() {
                   <span>
                     <strong>Show down payment</strong>
                     <small>
-                      Include the up-front down payment in buying payments and homeowner equity.
+                      Show the up-front down payment separately and add it to homeowner equity.
                     </small>
                   </span>
                 </label>
               </div>
 
-              <div className="comparison-summary">
+              <div
+                className={
+                  includeDownPayment
+                    ? "comparison-summary with-down-payment"
+                    : "comparison-summary"
+                }
+              >
                 <div className="comparison-card buy-total">
                   <span>Total buying payments</span>
                   <strong>{money(comparisonBuyingTotal)}</strong>
                   <small>{buyingTotalBreakdown}</small>
                 </div>
+                {includeDownPayment ? (
+                  <div className="comparison-card down-payment-total">
+                    <span>Down payment</span>
+                    <strong>{money(results.downPayment)}</strong>
+                    <small>Shown separately · builds equity</small>
+                  </div>
+                ) : null}
                 <div className="comparison-card rent-total">
                   <span>Total rent payments</span>
                   <strong>{money(results.selectedRentCash)}</strong>
@@ -894,17 +909,10 @@ export default function Home() {
                     <strong>{money(comparisonBuyingTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${includeDownPayment ? `, and ${money(results.downPayment)} down payment equity` : ""}`}
+                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, and ${money(selectedOwnerExtras)} in taxes and utilities` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
-                    {includeDownPayment ? (
-                      <span
-                        className="down-payment-fill"
-                        style={{ width: `${comparisonDownPaymentWidth}%` }}
-                        title={`${money(results.downPayment)} down payment equity`}
-                      />
-                    ) : null}
                     <span
                       className="principal-fill"
                       style={{ width: `${comparisonPrincipalWidth}%` }}
@@ -924,12 +932,6 @@ export default function Home() {
                     ) : null}
                   </div>
                   <div className="comparison-legend">
-                    {includeDownPayment ? (
-                      <span>
-                        <i className="legend down-payment" />
-                        Down payment / equity {money(results.downPayment)}
-                      </span>
-                    ) : null}
                     <span><i className="legend principal" />Principal / equity {money(results.selectedPrincipalPaid)}</span>
                     <span><i className="legend interest" />Interest {money(results.selectedInterestPaid)}</span>
                     {includeOwnerExtras ? (
@@ -940,6 +942,35 @@ export default function Home() {
                     ) : null}
                   </div>
                 </div>
+
+                {includeDownPayment ? (
+                  <div className="comparison-bar-group">
+                    <div className="comparison-bar-label">
+                      <div>
+                        <strong>Down payment · up-front equity</strong>
+                        <small>Shown separately from ongoing buying payments.</small>
+                      </div>
+                      <strong>{money(results.downPayment)}</strong>
+                    </div>
+                    <div
+                      aria-label={`${money(results.downPayment)} down payment included in homeowner equity`}
+                      className="comparison-track"
+                      role="img"
+                    >
+                      <span
+                        className="down-payment-fill"
+                        style={{ width: `${comparisonDownPaymentWidth}%` }}
+                        title={`${money(results.downPayment)} down payment equity`}
+                      />
+                    </div>
+                    <div className="comparison-legend">
+                      <span>
+                        <i className="legend down-payment" />
+                        Down payment / equity {money(results.downPayment)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
@@ -969,12 +1000,13 @@ export default function Home() {
 
               <p className="comparison-note">
                 Buying includes all mortgage payments—principal and interest
-                {includeOwnerExtras ? "—plus municipal taxes and utilities" : ""}
-                {includeDownPayment ? ", and the down payment" : ""}. Principal
+                {includeOwnerExtras ? "—plus municipal taxes and utilities" : ""}. Principal
                 {includeDownPayment ? " and the down payment build" : " builds"} home equity; all
                 other included amounts are costs. Renting includes rent payments only.
                 Maintenance, insurance, closing costs, and changes in home value are not included.
-                {!includeDownPayment ? " The down payment is hidden and excluded." : ""}
+                {includeDownPayment
+                  ? " The down payment is shown separately from buying payments."
+                  : " The down payment is hidden and excluded."}
                 {!includeOwnerExtras ? " Municipal taxes and utilities are excluded." : ""}
               </p>
             </section>
@@ -998,7 +1030,7 @@ export default function Home() {
                 <thead>
                   <tr>
                     <th>Year</th>
-                    <th>Buying paid</th>
+                    <th>Buying payments</th>
                     <th>Home equity</th>
                     {includeDownPayment ? <th>Down payment</th> : null}
                     <th>Principal paid</th>
@@ -1020,8 +1052,7 @@ export default function Home() {
                               ? (results.monthlyTaxes + results.monthlyUtilities) *
                                 12 *
                                 row.year
-                              : 0) +
-                            (includeDownPayment ? results.downPayment : 0),
+                              : 0),
                         )}
                       </td>
                       <td>

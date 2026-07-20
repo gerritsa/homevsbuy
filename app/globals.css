@@ -769,6 +769,10 @@ footer {
   border-left: 1px solid var(--line-strong);
 }
 
+.comparison-summary.with-down-payment {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .comparison-card {
   min-height: 108px;
   padding: 14px;
@@ -804,6 +808,10 @@ footer {
 
 .comparison-card.rent-total {
   background: #ede9fe;
+}
+
+.comparison-card.down-payment-total {
+  background: #fef3c7;
 }
 
 .comparison-card.equity-total {
@@ -1052,7 +1060,8 @@ footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .comparison-summary {
+  .comparison-summary,
+  .comparison-summary.with-down-payment {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1097,7 +1106,8 @@ footer {
   .monthly-grid,
   .selected-grid,
   .payment-split-cards,
-  .comparison-summary {
+  .comparison-summary,
+  .comparison-summary.with-down-payment {
     grid-template-columns: 1fr;
   }
 
