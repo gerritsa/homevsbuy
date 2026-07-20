@@ -243,6 +243,7 @@ export default function Home() {
   const [selectedMonth, setSelectedMonth] = useState(1)
   const [showGraph, setShowGraph] = useState(true)
   const [includeOwnerExtras, setIncludeOwnerExtras] = useState(true)
+  const [includeDownPayment, setIncludeDownPayment] = useState(false)
 
   const results = useMemo(() => {
     const purchasePrice = Math.max(0, inputs.purchasePrice)
@@ -310,18 +311,31 @@ export default function Home() {
   const selectedOwnerExtras =
     (results.monthlyTaxes + results.monthlyUtilities) * results.selectedMonth
   const comparisonBuyingTotal =
-    principalVsInterestTotal + (includeOwnerExtras ? selectedOwnerExtras : 0)
+    principalVsInterestTotal +
+    (includeOwnerExtras ? selectedOwnerExtras : 0) +
+    (includeDownPayment ? results.downPayment : 0)
+  const comparisonHomeEquity =
+    results.selectedPrincipalPaid + (includeDownPayment ? results.downPayment : 0)
+  const buyingTotalBreakdown = [
+    "Principal",
+    "interest",
+    ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
+    ...(includeDownPayment ? ["down payment"] : []),
+  ].join(" + ")
   const comparisonMax = Math.max(1, comparisonBuyingTotal, results.selectedRentCash)
   const comparisonPrincipalWidth = (results.selectedPrincipalPaid / comparisonMax) * 100
   const comparisonInterestWidth = (results.selectedInterestPaid / comparisonMax) * 100
   const comparisonOwnerExtrasWidth =
     includeOwnerExtras ? (selectedOwnerExtras / comparisonMax) * 100 : 0
+  const comparisonDownPaymentWidth =
+    includeDownPayment ? (results.downPayment / comparisonMax) * 100 : 0
   const comparisonRentWidth = (results.selectedRentCash / comparisonMax) * 100
   const resetCalculator = () => {
     setInputs(initialInputs)
     setSelectedMonth(1)
     setShowGraph(true)
     setIncludeOwnerExtras(true)
+    setIncludeDownPayment(false)
   }
 
   return (
@@ -797,36 +811,48 @@ export default function Home() {
               <div className="sheet-title results-title">
                 <div>
                   <h2>Buy vs. rent through month {results.selectedMonth}</h2>
-                  <span>Mortgage principal + interest compared with flat rent</span>
+                  <span>Buying payments and equity compared with flat rent</span>
                 </div>
               </div>
 
               <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
 
-              <label className="comparison-option">
-                <input
-                  checked={includeOwnerExtras}
-                  onChange={(event) => setIncludeOwnerExtras(event.target.checked)}
-                  type="checkbox"
-                />
-                <span>
-                  <strong>Include taxes and utilities in buying total</strong>
-                  <small>
-                    These homeowner costs are not included in rent. Uncheck to compare only
-                    mortgage principal and interest with rent.
-                  </small>
-                </span>
-              </label>
+              <div className="comparison-options">
+                <label className="comparison-option">
+                  <input
+                    checked={includeOwnerExtras}
+                    onChange={(event) => setIncludeOwnerExtras(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong>Include taxes and utilities in buying total</strong>
+                    <small>
+                      These homeowner costs are not included in rent. Uncheck to compare only
+                      mortgage principal and interest with rent.
+                    </small>
+                  </span>
+                </label>
+
+                <label className="comparison-option">
+                  <input
+                    checked={includeDownPayment}
+                    onChange={(event) => setIncludeDownPayment(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong>Show down payment</strong>
+                    <small>
+                      Include the up-front down payment in buying payments and homeowner equity.
+                    </small>
+                  </span>
+                </label>
+              </div>
 
               <div className="comparison-summary">
                 <div className="comparison-card buy-total">
                   <span>Total buying payments</span>
                   <strong>{money(comparisonBuyingTotal)}</strong>
-                  <small>
-                    {includeOwnerExtras
-                      ? "Principal + interest + taxes + utilities"
-                      : "Principal + interest"}
-                  </small>
+                  <small>{buyingTotalBreakdown}</small>
                 </div>
                 <div className="comparison-card rent-total">
                   <span>Total rent payments</span>
@@ -834,9 +860,11 @@ export default function Home() {
                   <small>Flat monthly rent</small>
                 </div>
                 <div className="comparison-card equity-total">
-                  <span>Home equity from principal</span>
-                  <strong>{money(results.selectedPrincipalPaid)}</strong>
-                  <small>Down payment not included</small>
+                  <span>Home equity from buying</span>
+                  <strong>{money(comparisonHomeEquity)}</strong>
+                  <small>
+                    {includeDownPayment ? "Principal + down payment" : "Principal paid to date"}
+                  </small>
                 </div>
                 <div className="comparison-card no-equity">
                   <span>Home equity from rent</span>
@@ -859,16 +887,24 @@ export default function Home() {
                     <div>
                       <strong>Buying · total payments</strong>
                       <small>
-                        Principal builds equity; all other included payments are housing costs.
+                        Principal{includeDownPayment ? " and the down payment build" : " builds"}{" "}
+                        equity; all other included payments are housing costs.
                       </small>
                     </div>
                     <strong>{money(comparisonBuyingTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, and ${money(selectedOwnerExtras)} in taxes and utilities` : ""}`}
+                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${includeDownPayment ? `, and ${money(results.downPayment)} down payment equity` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
+                    {includeDownPayment ? (
+                      <span
+                        className="down-payment-fill"
+                        style={{ width: `${comparisonDownPaymentWidth}%` }}
+                        title={`${money(results.downPayment)} down payment equity`}
+                      />
+                    ) : null}
                     <span
                       className="principal-fill"
                       style={{ width: `${comparisonPrincipalWidth}%` }}
@@ -888,6 +924,12 @@ export default function Home() {
                     ) : null}
                   </div>
                   <div className="comparison-legend">
+                    {includeDownPayment ? (
+                      <span>
+                        <i className="legend down-payment" />
+                        Down payment / equity {money(results.downPayment)}
+                      </span>
+                    ) : null}
                     <span><i className="legend principal" />Principal / equity {money(results.selectedPrincipalPaid)}</span>
                     <span><i className="legend interest" />Interest {money(results.selectedInterestPaid)}</span>
                     {includeOwnerExtras ? (
@@ -926,11 +968,14 @@ export default function Home() {
               </div>
 
               <p className="comparison-note">
-                Buying includes mortgage principal and interest
-                {includeOwnerExtras ? ", municipal taxes, and utilities" : ""}; renting includes
-                rent paid. This comparison excludes the down payment, maintenance, insurance,
-                closing costs, and home-price changes
-                {includeOwnerExtras ? "." : ", as well as municipal taxes and utilities."}
+                Buying includes all mortgage payments—principal and interest
+                {includeOwnerExtras ? "—plus municipal taxes and utilities" : ""}
+                {includeDownPayment ? ", and the down payment" : ""}. Principal
+                {includeDownPayment ? " and the down payment build" : " builds"} home equity; all
+                other included amounts are costs. Renting includes rent payments only.
+                Maintenance, insurance, closing costs, and changes in home value are not included.
+                {!includeDownPayment ? " The down payment is hidden and excluded." : ""}
+                {!includeOwnerExtras ? " Municipal taxes and utilities are excluded." : ""}
               </p>
             </section>
           </div>
@@ -943,7 +988,7 @@ export default function Home() {
                 <p>
                   Compare cumulative buying payments with cumulative rent. Principal is shown
                   separately because it reduces the mortgage and builds homeowner equity. Taxes
-                  and utilities follow the checkbox above.
+                  and utilities, the down payment, and home equity follow the checkboxes above.
                 </p>
               </div>
             </div>
@@ -954,7 +999,9 @@ export default function Home() {
                   <tr>
                     <th>Year</th>
                     <th>Buying paid</th>
-                    <th>Principal / equity</th>
+                    <th>Home equity</th>
+                    {includeDownPayment ? <th>Down payment</th> : null}
+                    <th>Principal paid</th>
                     <th>Interest cost</th>
                     <th>Taxes + utilities</th>
                     <th>Rent paid</th>
@@ -973,9 +1020,17 @@ export default function Home() {
                               ? (results.monthlyTaxes + results.monthlyUtilities) *
                                 12 *
                                 row.year
-                              : 0),
+                              : 0) +
+                            (includeDownPayment ? results.downPayment : 0),
                         )}
                       </td>
+                      <td>
+                        {money(
+                          row.totalPrincipalPaid +
+                            (includeDownPayment ? results.downPayment : 0),
+                        )}
+                      </td>
+                      {includeDownPayment ? <td>{money(results.downPayment)}</td> : null}
                       <td>{money(row.totalPrincipalPaid)}</td>
                       <td>{money(row.totalInterestPaid)}</td>
                       <td>
