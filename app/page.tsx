@@ -8,7 +8,7 @@ type CalculatorInputs = {
   interestRate: number
   amortizationYears: number
   annualTaxes: number
-  monthlyHydro: number
+  monthlyUtilities: number
   monthlyRent: number
 }
 
@@ -38,7 +38,7 @@ const initialInputs: CalculatorInputs = {
   interestRate: 4.3,
   amortizationYears: 25,
   annualTaxes: 4400,
-  monthlyHydro: 375,
+  monthlyUtilities: 375,
   monthlyRent: 2700,
 }
 
@@ -250,13 +250,13 @@ export default function Home() {
     const mortgageAmount = Math.max(0, purchasePrice - downPayment)
     const schedule = buildSchedule(mortgageAmount, inputs.interestRate, inputs.amortizationYears)
     const monthlyTaxes = Math.max(0, inputs.annualTaxes) / 12
-    const monthlyHydro = Math.max(0, inputs.monthlyHydro)
+    const monthlyUtilities = Math.max(0, inputs.monthlyUtilities)
     const safeSelectedMonth = Math.min(Math.max(1, selectedMonth), LONG_TERM_MONTHS)
     const selectedScheduleRow = schedule.months[safeSelectedMonth - 1] ?? schedule.months.at(-1)
     const selectedMonthPrincipal = selectedScheduleRow?.principalPaid ?? 0
     const selectedMonthInterest = selectedScheduleRow?.interestPaid ?? 0
     const selectedMonthMortgagePayment = selectedMonthPrincipal + selectedMonthInterest
-    const selectedMonthlyOwnerTotal = selectedMonthMortgagePayment + monthlyTaxes + monthlyHydro
+    const selectedMonthlyOwnerTotal = selectedMonthMortgagePayment + monthlyTaxes + monthlyUtilities
     const selectedPrincipalPaid = selectedScheduleRow?.totalPrincipalPaid ?? 0
     const selectedInterestPaid = selectedScheduleRow?.totalInterestPaid ?? 0
     const monthlyRent = Math.max(0, inputs.monthlyRent)
@@ -278,7 +278,7 @@ export default function Home() {
       downPayment,
       mortgageAmount,
       monthlyTaxes,
-      monthlyHydro,
+      monthlyUtilities,
       monthlyRent,
       selectedMonth: safeSelectedMonth,
       selectedMonthPrincipal,
@@ -455,13 +455,13 @@ export default function Home() {
                     value={inputs.annualTaxes}
                   />
                   <NumberField
-                    id="monthly-hydro"
-                    label="Hydro"
-                    onChange={(value) => updateInput("monthlyHydro", value)}
+                    id="monthly-utilities"
+                    label="Utilities"
+                    onChange={(value) => updateInput("monthlyUtilities", value)}
                     prefix="$"
                     step={10}
                     suffix="/ month"
-                    value={inputs.monthlyHydro}
+                    value={inputs.monthlyUtilities}
                   />
                 </div>
                 <div className="formula-grid">
@@ -508,8 +508,8 @@ export default function Home() {
                   <strong>{preciseMoney(results.monthlyTaxes)}</strong>
                 </div>
                 <div className="monthly-card">
-                  <span>Hydro / month</span>
-                  <strong>{preciseMoney(results.monthlyHydro)}</strong>
+                  <span>Utilities / month</span>
+                  <strong>{preciseMoney(results.monthlyUtilities)}</strong>
                 </div>
                 <div className="monthly-card total">
                   <span>Monthly total</span>
@@ -529,7 +529,7 @@ export default function Home() {
                   note="Cost of borrowing"
                 />
                 <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Municipal taxes" />
-                <DetailRow amount={preciseMoney(results.monthlyHydro)} label="Hydro" />
+                <DetailRow amount={preciseMoney(results.monthlyUtilities)} label="Utilities" />
                 <DetailRow
                   amount={preciseMoney(results.selectedMonthlyOwnerTotal)}
                   emphasis
@@ -538,9 +538,9 @@ export default function Home() {
               </div>
               <p className="monthly-explainer">
                 <strong>Does the monthly cost change?</strong> In this estimate, the mortgage
-                payment, taxes, and hydro stay level. What changes each month is the split:
+                payment, taxes, and utilities stay level. What changes each month is the split:
                 interest goes down while principal—the part that pays off your mortgage—goes up.
-                Once the mortgage is paid off, only taxes and hydro remain.
+                Once the mortgage is paid off, only taxes and utilities remain.
               </p>
 
               <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
@@ -576,7 +576,7 @@ export default function Home() {
                   <div className="payment-total">
                     <span>Total mortgage payments to date</span>
                     <strong>{money(principalVsInterestTotal)}</strong>
-                    <small>Down payment, taxes, and hydro are not included here.</small>
+                    <small>Down payment, taxes, and utilities are not included here.</small>
                   </div>
                   <div
                     aria-label={`${money(principalVsInterestTotal)} in total mortgage payments: ${money(results.selectedPrincipalPaid)} principal and ${money(results.selectedInterestPaid)} interest`}
@@ -885,7 +885,7 @@ export default function Home() {
               <p className="comparison-note">
                 This comparison follows your requested scope: buying is mortgage principal plus
                 interest, while renting is rent paid. It excludes the down payment, municipal
-                taxes, hydro, maintenance, insurance, closing costs, and home-price changes.
+                taxes, utilities, maintenance, insurance, closing costs, and home-price changes.
               </p>
             </section>
           </div>

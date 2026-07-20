@@ -10,7 +10,7 @@ test("ships the home decision calculator features and defaults", async () => {
   assert.match(page, /purchasePrice: 650000/)
   assert.match(page, /interestRate: 4\.3/)
   assert.match(page, /annualTaxes: 4400/)
-  assert.match(page, /monthlyHydro: 375/)
+  assert.match(page, /monthlyUtilities: 375/)
   assert.match(page, /monthlyRent: 2700/)
   assert.match(page, /downPaymentPercent: 20/)
   assert.match(page, /LONG_TERM_YEARS = 25/)
@@ -22,7 +22,7 @@ test("ships the home decision calculator features and defaults", async () => {
   assert.match(page, /Renter home equity/)
   assert.match(page, /Total mortgage payments/)
   assert.doesNotMatch(page, /annualRentIncrease/)
-  assert.doesNotMatch(page, /Interest, taxes &amp; hydro paid by selected month/)
+  assert.doesNotMatch(page, /Hydro|monthlyHydro/)
 })
 
 test("ships production metadata and social card", async () => {
