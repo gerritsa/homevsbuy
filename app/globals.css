@@ -265,6 +265,17 @@ footer {
   font-weight: 750;
 }
 
+.field-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 0;
+}
+
+.field-label-row .field-label {
+  padding: 0;
+}
+
 .input-shell {
   display: flex;
   align-items: center;
@@ -317,27 +328,6 @@ footer {
   white-space: nowrap;
 }
 
-.formula-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 16px;
-  border: 1px solid var(--line);
-}
-
-.mortgage-formula-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.formula-grid > div {
-  padding: 13px;
-  background: var(--blue-soft);
-}
-
-.formula-grid > div + div {
-  border-left: 1px solid var(--line);
-}
-
-.formula-grid span,
 .monthly-card span,
 .selected-grid span,
 .schedule-stat span {
@@ -354,6 +344,7 @@ footer {
 }
 
 .info-dot {
+  appearance: none;
   display: inline-flex;
   width: 14px;
   height: 14px;
@@ -361,14 +352,16 @@ footer {
   justify-content: center;
   border: 1px solid var(--line-strong);
   border-radius: 50%;
+  background: white;
   color: var(--muted);
+  cursor: help;
   font-size: 0.58rem;
   font-style: normal;
   font-weight: 800;
   line-height: 1;
+  padding: 0;
 }
 
-.formula-grid strong,
 .monthly-card strong,
 .selected-grid strong,
 .schedule-stat strong {
@@ -1380,7 +1373,6 @@ footer {
   }
 
   .field-grid,
-  .formula-grid,
   .monthly-grid,
   .selected-grid,
   .mortgage-status-grid,
@@ -1398,11 +1390,6 @@ footer {
 
   .comparison-metric:last-child {
     border-bottom: 0;
-  }
-
-  .formula-grid > div + div {
-    border-top: 1px solid var(--line);
-    border-left: 0;
   }
 
   .sheet-row {

@@ -96,15 +96,17 @@ function NumberField({
   }, [value])
 
   return (
-    <label className="field" htmlFor={id}>
-      <span className="field-label">
-        {label}
+    <div className="field">
+      <div className="field-label-row">
+        <label className="field-label" htmlFor={id}>
+          {label}
+        </label>
         {hint ? (
-          <i aria-label={hint} className="info-dot" role="img" title={hint}>
+          <button aria-label={hint} className="info-dot" title={hint} type="button">
             i
-          </i>
+          </button>
         ) : null}
-      </span>
+      </div>
       <span className="input-shell">
         {prefix ? <span className="input-affix">{prefix}</span> : null}
         <input
@@ -138,7 +140,7 @@ function NumberField({
         />
         {suffix ? <span className="input-affix suffix">{suffix}</span> : null}
       </span>
-    </label>
+    </div>
   )
 }
 
@@ -211,6 +213,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"buy" | "rent" | "compare">("buy")
   const [selectedMonth, setSelectedMonth] = useState(1)
   const [includeOwnerExtras, setIncludeOwnerExtras] = useState(true)
+  const [includeDownPaymentInComparison, setIncludeDownPaymentInComparison] = useState(true)
   const [renewalRates, setRenewalRates] = useState([4.3, 4.3, 4.3, 4.3, 4.3])
 
   const results = useMemo(() => {
@@ -308,8 +311,9 @@ export default function Home() {
   const selectedHomeInsurancePaid = results.monthlyHomeInsurance * results.selectedMonth
   const selectedAdvancedBuyingCosts =
     selectedMaintenancePaid + selectedHomeInsurancePaid + results.closingCosts
+  const comparisonDownPayment = includeDownPaymentInComparison ? results.downPayment : 0
   const comparisonBuyingTotal =
-    results.downPayment +
+    comparisonDownPayment +
     principalVsInterestTotal +
     (includeOwnerExtras ? selectedOwnerExtras : 0) +
     selectedAdvancedBuyingCosts
@@ -328,8 +332,9 @@ export default function Home() {
     results.monthlyHomeInsurance > 0 ||
     results.closingCosts > 0
   const hasAdvancedRentingCosts = results.monthlyRentalUtilities > 0
+  const showCmhcDetails = results.downPaymentPercent < 20
   const buyingTotalBreakdown = [
-    "Down payment",
+    ...(includeDownPaymentInComparison ? ["Down payment"] : []),
     "principal",
     "interest",
     ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
@@ -348,6 +353,7 @@ export default function Home() {
   const comparisonMax = Math.max(
     1,
     comparisonBuyingGraphTotal,
+    includeDownPaymentInComparison ? 0 : results.downPayment,
     results.selectedRentCash,
   )
   const comparisonPrincipalWidth = (results.selectedPrincipalPaid / comparisonMax) * 100
@@ -357,7 +363,9 @@ export default function Home() {
   const comparisonMaintenanceWidth = (selectedMaintenancePaid / comparisonMax) * 100
   const comparisonHomeInsuranceWidth = (selectedHomeInsurancePaid / comparisonMax) * 100
   const comparisonClosingCostsWidth = (results.closingCosts / comparisonMax) * 100
-  const comparisonDownPaymentWidth = (results.downPayment / comparisonMax) * 100
+  const comparisonDownPaymentWidth = (comparisonDownPayment / comparisonMax) * 100
+  const comparisonSeparateDownPaymentWidth =
+    includeDownPaymentInComparison ? 0 : (results.downPayment / comparisonMax) * 100
   const comparisonRentWidth = (results.selectedRentPaid / comparisonMax) * 100
   const comparisonRentUtilitiesWidth =
     (results.selectedRentalUtilitiesPaid / comparisonMax) * 100
@@ -378,6 +386,7 @@ export default function Home() {
     setInputs(initialInputs)
     setSelectedMonth(1)
     setIncludeOwnerExtras(true)
+    setIncludeDownPaymentInComparison(true)
     setRenewalRates([4.3, 4.3, 4.3, 4.3, 4.3])
   }
 
@@ -522,40 +531,16 @@ export default function Home() {
                     value={inputs.monthlyUtilities}
                   />
                 </div>
-                <div className="formula-grid mortgage-formula-grid">
-                  <div>
-                    <span>Down payment amount</span>
-                    <strong>{money(results.downPayment)}</strong>
-                  </div>
-                  <div>
-                    <span>Base mortgage</span>
-                    <strong>{money(results.baseMortgageAmount)}</strong>
-                  </div>
-                  <div>
-                    <span>
-                      Estimated CMHC premium
-                      {results.cmhcPremiumRate > 0
-                        ? ` · ${results.cmhcPremiumRate.toFixed(2)}%`
-                        : ""}
-                    </span>
-                    <strong>{money(results.cmhcPremium)}</strong>
-                  </div>
-                  <div>
-                    <span>Total mortgage</span>
-                    <strong>{money(results.mortgageAmount)}</strong>
-                  </div>
-                </div>
-                {results.cmhcWarning ? (
+                {showCmhcDetails && results.cmhcWarning ? (
                   <p className="input-warning" role="alert">
                     {results.cmhcWarning}
                   </p>
                 ) : null}
                 <p className="input-note">
-                  Uses Canadian semi-annual compounding. When an eligible down payment is below 20%,
-                  the estimated CMHC premium is added to the mortgage. A 0.20 percentage-point
-                  premium surcharge is included for a 30-year insured amortization. Provincial tax
-                  on the premium is not included. A 30-year insured mortgage assumes the buyer is
-                  eligible as a first-time buyer or purchaser of a new build.
+                  Uses Canadian semi-annual compounding.
+                  {showCmhcDetails
+                    ? " Because the entered down payment is below 20%, an eligible estimated CMHC premium is added to the mortgage. A 0.20 percentage-point premium surcharge is included for a 30-year insured amortization. Provincial tax on the premium is not included. A 30-year insured mortgage assumes the buyer is eligible as a first-time buyer or purchaser of a new build."
+                    : ""}
                 </p>
                 <details className="advanced-panel" open>
                   <summary>Advanced buying costs (optional)</summary>
@@ -635,7 +620,7 @@ export default function Home() {
 
               <div className="monthly-grid four-up">
                 <div className="monthly-card owner">
-                  <span>Mortgage payment · {percent(results.selectedAnnualRate)} rate</span>
+                  <span>Mortgage payment</span>
                   <strong>{preciseMoney(results.selectedMonthMortgagePayment)}</strong>
                 </div>
                 <div className="monthly-card">
@@ -1045,6 +1030,22 @@ export default function Home() {
               <div className="comparison-options">
                 <label className="comparison-option">
                   <input
+                    checked={includeDownPaymentInComparison}
+                    onChange={(event) =>
+                      setIncludeDownPaymentInComparison(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <span>
+                    <strong>Include down payment in buying cash paid</strong>
+                    <small>
+                      Turn off to show the down payment as a separate up-front flow instead of
+                      counting it in total cash paid.
+                    </small>
+                  </span>
+                </label>
+                <label className="comparison-option">
+                  <input
                     checked={includeOwnerExtras}
                     onChange={(event) => setIncludeOwnerExtras(event.target.checked)}
                     type="checkbox"
@@ -1089,7 +1090,11 @@ export default function Home() {
                   <div className="comparison-upfront">
                     <span>
                       <strong>Down payment</strong>
-                      <small>Up-front cash · included in total cash paid and estimated equity</small>
+                      <small>
+                        {includeDownPaymentInComparison
+                          ? "Up-front cash · included in total cash paid and estimated equity"
+                          : "Up-front cash · shown separately from total cash paid"}
+                      </small>
                     </span>
                     <strong>{money(results.downPayment)}</strong>
                   </div>
@@ -1159,14 +1164,15 @@ export default function Home() {
                     <div>
                       <strong>Buying · cash paid</strong>
                       <small>
-                        The down payment and principal repayment contribute to home equity. The
-                        down payment is included in this bar.
+                        {includeDownPaymentInComparison
+                          ? "The down payment and principal repayment contribute to home equity. The down payment is included in this bar."
+                          : "Principal repayment contributes to home equity. The down payment is shown as a separate flow below."}
                       </small>
                     </div>
                     <strong>{money(comparisonBuyingGraphTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingGraphTotal)} in buying cash paid: ${money(results.downPayment)} down payment, ${money(results.selectedPrincipalPaid)} mortgage principal, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
+                    aria-label={`${money(comparisonBuyingGraphTotal)} in buying cash paid: ${includeDownPaymentInComparison ? `${money(results.downPayment)} down payment, ` : ""}${money(results.selectedPrincipalPaid)} mortgage principal, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
@@ -1175,11 +1181,13 @@ export default function Home() {
                       style={{ width: `${comparisonPrincipalWidth}%` }}
                       title={`${money(results.selectedPrincipalPaid)} principal`}
                     />
-                    <span
-                      className="down-payment-fill"
-                      style={{ width: `${comparisonDownPaymentWidth}%` }}
-                      title={`${money(results.downPayment)} down payment`}
-                    />
+                    {includeDownPaymentInComparison ? (
+                      <span
+                        className="down-payment-fill"
+                        style={{ width: `${comparisonDownPaymentWidth}%` }}
+                        title={`${money(results.downPayment)} down payment`}
+                      />
+                    ) : null}
                     <span
                       className="interest-fill"
                       style={{ width: `${comparisonInterestWidth}%` }}
@@ -1216,10 +1224,17 @@ export default function Home() {
                   </div>
                   <div className="comparison-legend">
                     <span><i className="legend principal" />Mortgage principal {money(results.selectedPrincipalPaid)}</span>
-                    <span>
-                      <i className="legend down-payment" />
-                      Down payment {money(results.downPayment)}
-                    </span>
+                    {includeDownPaymentInComparison ? (
+                      <span>
+                        <i className="legend down-payment" />
+                        Down payment {money(results.downPayment)}
+                      </span>
+                    ) : (
+                      <span>
+                        <i className="legend empty-legend" />
+                        Down payment shown separately
+                      </span>
+                    )}
                     <span><i className="legend interest" />Interest {money(results.selectedInterestPaid)}</span>
                     {includeOwnerExtras ? (
                       <span>
@@ -1253,6 +1268,35 @@ export default function Home() {
                     ) : null}
                   </div>
                 </div>
+
+                {!includeDownPaymentInComparison ? (
+                  <div className="comparison-bar-group">
+                    <div className="comparison-bar-label">
+                      <div>
+                        <strong>Buying · down payment</strong>
+                        <small>Separate up-front cash flow, excluded from buying cash paid.</small>
+                      </div>
+                      <strong>{money(results.downPayment)}</strong>
+                    </div>
+                    <div
+                      aria-label={`${money(results.downPayment)} down payment shown as a separate buying cash flow`}
+                      className="comparison-track"
+                      role="img"
+                    >
+                      <span
+                        className="down-payment-fill"
+                        style={{ width: `${comparisonSeparateDownPaymentWidth}%` }}
+                        title={`${money(results.downPayment)} separate down payment`}
+                      />
+                    </div>
+                    <div className="comparison-legend">
+                      <span>
+                        <i className="legend down-payment" />
+                        Down payment {money(results.downPayment)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
@@ -1294,9 +1338,17 @@ export default function Home() {
               </div>
 
               <p className="comparison-note">
-                Buying cash paid includes the down payment, mortgage payments, enabled ownership
-                costs, and entered closing costs. Estimated home equity is the entered home price
-                minus the remaining mortgage balance, so a financed CMHC premium reduces equity.
+                Buying cash paid includes
+                {includeDownPaymentInComparison ? " the down payment," : ""} mortgage payments,
+                enabled ownership costs, and entered closing costs.
+                {!includeDownPaymentInComparison
+                  ? " The down payment is shown as a separate up-front flow."
+                  : ""}{" "}
+                Estimated home equity is the entered home price
+                minus the remaining mortgage balance
+                {results.cmhcPremium > 0
+                  ? ", so the financed CMHC premium reduces equity."
+                  : "."}
                 Buying&apos;s non-equity cost incurred is
                 {results.cmhcPremium > 0 ? " the estimated CMHC premium plus" : ""} interest
                 {includeOwnerExtras ? " plus municipal taxes and utilities" : ""}
@@ -1319,8 +1371,8 @@ export default function Home() {
                 <h2>Year 1 to year 25</h2>
                 <p>
                   Compare cumulative buying payments with cumulative rent. Principal is shown
-                  separately because it reduces the mortgage. The down payment is always included
-                  in buying cash paid and estimated home equity. Taxes and utilities follow the
+                  separately because it reduces the mortgage. The down payment can be included in
+                  buying cash paid or shown as a separate flow. Taxes and utilities follow the
                   checkbox above.
                 </p>
               </div>
@@ -1374,7 +1426,7 @@ export default function Home() {
                       <td><strong>{row.year}</strong></td>
                       <td>
                         {money(
-                          results.downPayment +
+                          comparisonDownPayment +
                             row.totalPrincipalPaid +
                             row.totalInterestPaid +
                             (includeOwnerExtras
@@ -1443,8 +1495,9 @@ export default function Home() {
       <footer>
         <p>
           Simplified cash-flow estimate only. Entered maintenance, homeowner insurance, closing
-          costs, rental utilities, entered five-year renewal rates, annual rent increases, and an
-          eligible estimated CMHC premium are included. These rates are scenarios, not forecasts.
+          costs, rental utilities, entered five-year renewal rates, annual rent increases
+          {showCmhcDetails ? ", and an eligible estimated CMHC premium" : ""} are included. These
+          rates are scenarios, not forecasts.
           Home-price changes, investment returns, selling costs, and tenant insurance are excluded.
         </p>
       </footer>
