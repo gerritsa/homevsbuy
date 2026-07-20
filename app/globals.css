@@ -575,6 +575,7 @@ footer {
 }
 
 .slider-heading h3 span {
+  margin-left: 8px;
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 600;

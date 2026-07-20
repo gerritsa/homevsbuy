@@ -897,10 +897,12 @@ export default function Home() {
             <section className="results-book" aria-live="polite">
               <div className="sheet-title results-title">
                 <div>
-                  <h2>Renting cost</h2>
-                  <span>Separate from the mortgage worksheet</span>
+                  <h2>Monthly spending in month {results.selectedMonth}</h2>
+                  <span>Move the timeline slider to compare any month</span>
                 </div>
               </div>
+
+              <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
 
               <div className="monthly-grid four-up rent-summary">
                 <div className="monthly-card rent">
@@ -922,8 +924,6 @@ export default function Home() {
                   <strong>{money(results.selectedRentCash)}</strong>
                 </div>
               </div>
-
-              <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
 
               <div className="selected-grid rent-milestones">
                 {[1, 5, 10, 25].map((year) => (
