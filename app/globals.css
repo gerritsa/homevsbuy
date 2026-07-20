@@ -342,6 +342,8 @@ footer {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .info-dot {
@@ -396,6 +398,7 @@ footer {
   display: block;
   margin-top: 5px;
   font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .input-note {
@@ -501,6 +504,7 @@ footer {
 }
 
 .monthly-card {
+  min-width: 0;
   min-height: 86px;
   padding: 14px;
   border-right: 1px solid var(--line-strong);
@@ -1268,6 +1272,8 @@ footer {
 
 .table-wrap {
   overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--line-strong);
 }
 
@@ -1435,6 +1441,10 @@ footer {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .monthly-grid.four-up {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .comparison-overview {
     grid-template-columns: 1fr;
   }
@@ -1477,6 +1487,7 @@ footer {
 
   .field-grid,
   .monthly-grid,
+  .monthly-grid.four-up,
   .selected-grid,
   .mortgage-status-grid,
   .payment-split-cards,
@@ -1497,6 +1508,17 @@ footer {
 
   .sheet-row {
     grid-template-columns: minmax(120px, 1.1fr) minmax(82px, 0.95fr) minmax(82px, 0.95fr);
+  }
+
+  .detail-row {
+    grid-template-columns: minmax(0, 1fr) minmax(104px, auto);
+  }
+
+  .detail-row > span {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
   }
 
   .slider-heading,

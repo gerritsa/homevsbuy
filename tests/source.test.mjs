@@ -157,6 +157,15 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(css, /\.comparison-table-groups/)
   assert.match(css, /color-mix\(in srgb, var\(--rent\) 12%, white\)/)
   assert.match(css, /\.comparison-table th\.table-down-payment/)
+  assert.match(css, /overflow-wrap: anywhere/)
+  assert.match(
+    css,
+    /@media \(max-width: 980px\)[\s\S]*\.monthly-grid\.four-up\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/,
+  )
+  assert.match(
+    css,
+    /@media \(max-width: 700px\)[\s\S]*\.monthly-grid\.four-up[\s\S]*grid-template-columns: 1fr/,
+  )
 })
 
 test("ships production metadata and social card", async () => {
