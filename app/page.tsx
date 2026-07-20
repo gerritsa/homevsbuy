@@ -10,6 +10,10 @@ type CalculatorInputs = {
   annualTaxes: number
   monthlyUtilities: number
   monthlyRent: number
+  monthlyMaintenance: number
+  monthlyHomeInsurance: number
+  closingCosts: number
+  monthlyRentalUtilities: number
 }
 
 type MonthlyRow = {
@@ -40,6 +44,10 @@ const initialInputs: CalculatorInputs = {
   annualTaxes: 4400,
   monthlyUtilities: 375,
   monthlyRent: 2700,
+  monthlyMaintenance: 0,
+  monthlyHomeInsurance: 0,
+  closingCosts: 0,
+  monthlyRentalUtilities: 0,
 }
 
 const LONG_TERM_YEARS = 25
@@ -253,16 +261,25 @@ export default function Home() {
     const schedule = buildSchedule(mortgageAmount, inputs.interestRate, inputs.amortizationYears)
     const monthlyTaxes = Math.max(0, inputs.annualTaxes) / 12
     const monthlyUtilities = Math.max(0, inputs.monthlyUtilities)
+    const monthlyMaintenance = Math.max(0, inputs.monthlyMaintenance)
+    const monthlyHomeInsurance = Math.max(0, inputs.monthlyHomeInsurance)
+    const closingCosts = Math.max(0, inputs.closingCosts)
+    const monthlyOwnerAdvanced = monthlyMaintenance + monthlyHomeInsurance
     const safeSelectedMonth = Math.min(Math.max(1, selectedMonth), LONG_TERM_MONTHS)
     const selectedScheduleRow = schedule.months[safeSelectedMonth - 1] ?? schedule.months.at(-1)
     const selectedMonthPrincipal = selectedScheduleRow?.principalPaid ?? 0
     const selectedMonthInterest = selectedScheduleRow?.interestPaid ?? 0
     const selectedMonthMortgagePayment = selectedMonthPrincipal + selectedMonthInterest
-    const selectedMonthlyOwnerTotal = selectedMonthMortgagePayment + monthlyTaxes + monthlyUtilities
+    const selectedMonthlyOwnerTotal =
+      selectedMonthMortgagePayment + monthlyTaxes + monthlyUtilities + monthlyOwnerAdvanced
     const selectedPrincipalPaid = selectedScheduleRow?.totalPrincipalPaid ?? 0
     const selectedInterestPaid = selectedScheduleRow?.totalInterestPaid ?? 0
     const monthlyRent = Math.max(0, inputs.monthlyRent)
-    const selectedRentCash = monthlyRent * safeSelectedMonth
+    const monthlyRentalUtilities = Math.max(0, inputs.monthlyRentalUtilities)
+    const selectedRentPaid = monthlyRent * safeSelectedMonth
+    const selectedRentalUtilitiesPaid = monthlyRentalUtilities * safeSelectedMonth
+    const selectedRentCash = selectedRentPaid + selectedRentalUtilitiesPaid
+    const selectedOwnerAdvancedPaid = monthlyOwnerAdvanced * safeSelectedMonth
 
     const rentYears = Array.from({ length: LONG_TERM_YEARS }, (_, index) => {
       const year = index + 1
@@ -270,6 +287,9 @@ export default function Home() {
         year,
         annualRent: monthlyRent * 12,
         totalRent: monthlyRent * 12 * year,
+        annualRentalUtilities: monthlyRentalUtilities * 12,
+        totalRentalUtilities: monthlyRentalUtilities * 12 * year,
+        totalRentalCash: (monthlyRent + monthlyRentalUtilities) * 12 * year,
       }
     })
 
@@ -281,7 +301,12 @@ export default function Home() {
       mortgageAmount,
       monthlyTaxes,
       monthlyUtilities,
+      monthlyMaintenance,
+      monthlyHomeInsurance,
+      monthlyOwnerAdvanced,
+      closingCosts,
       monthlyRent,
+      monthlyRentalUtilities,
       selectedMonth: safeSelectedMonth,
       selectedMonthPrincipal,
       selectedMonthInterest,
@@ -289,6 +314,9 @@ export default function Home() {
       selectedMonthlyOwnerTotal,
       selectedPrincipalPaid,
       selectedInterestPaid,
+      selectedOwnerAdvancedPaid,
+      selectedRentPaid,
+      selectedRentalUtilitiesPaid,
       selectedRentCash,
       balanceAtSelectedMonth: selectedScheduleRow?.endingBalance ?? 0,
       paidOffAtSelectedMonth: selectedScheduleRow?.paidOffPercent ?? 100,
@@ -310,16 +338,37 @@ export default function Home() {
     principalVsInterestTotal === 0 ? 0 : (results.selectedPrincipalPaid / principalVsInterestTotal) * 100
   const selectedOwnerExtras =
     (results.monthlyTaxes + results.monthlyUtilities) * results.selectedMonth
+  const selectedAdvancedBuyingCosts =
+    results.selectedOwnerAdvancedPaid + results.closingCosts
   const comparisonBuyingTotal =
-    principalVsInterestTotal + (includeOwnerExtras ? selectedOwnerExtras : 0)
+    principalVsInterestTotal +
+    (includeOwnerExtras ? selectedOwnerExtras : 0) +
+    selectedAdvancedBuyingCosts
   const comparisonHomeEquity =
     results.selectedPrincipalPaid + (includeDownPayment ? results.downPayment : 0)
   const comparisonBuyingCost =
-    results.selectedInterestPaid + (includeOwnerExtras ? selectedOwnerExtras : 0)
+    results.selectedInterestPaid +
+    (includeOwnerExtras ? selectedOwnerExtras : 0) +
+    selectedAdvancedBuyingCosts
+  const hasAdvancedBuyingCosts =
+    results.monthlyMaintenance > 0 ||
+    results.monthlyHomeInsurance > 0 ||
+    results.closingCosts > 0
+  const hasAdvancedRentingCosts = results.monthlyRentalUtilities > 0
   const buyingTotalBreakdown = [
     "Principal",
     "interest",
     ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
+    ...(results.monthlyMaintenance > 0 ? ["maintenance"] : []),
+    ...(results.monthlyHomeInsurance > 0 ? ["insurance"] : []),
+    ...(results.closingCosts > 0 ? ["closing costs"] : []),
+  ].join(" + ")
+  const buyingCostBreakdown = [
+    "Interest",
+    ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
+    ...(results.monthlyMaintenance > 0 ? ["maintenance"] : []),
+    ...(results.monthlyHomeInsurance > 0 ? ["insurance"] : []),
+    ...(results.closingCosts > 0 ? ["closing costs"] : []),
   ].join(" + ")
   const comparisonMax = Math.max(
     1,
@@ -331,9 +380,13 @@ export default function Home() {
   const comparisonInterestWidth = (results.selectedInterestPaid / comparisonMax) * 100
   const comparisonOwnerExtrasWidth =
     includeOwnerExtras ? (selectedOwnerExtras / comparisonMax) * 100 : 0
+  const comparisonAdvancedBuyingWidth =
+    (selectedAdvancedBuyingCosts / comparisonMax) * 100
   const comparisonDownPaymentWidth =
     includeDownPayment ? (results.downPayment / comparisonMax) * 100 : 0
-  const comparisonRentWidth = (results.selectedRentCash / comparisonMax) * 100
+  const comparisonRentWidth = (results.selectedRentPaid / comparisonMax) * 100
+  const comparisonRentUtilitiesWidth =
+    (results.selectedRentalUtilitiesPaid / comparisonMax) * 100
   const resetCalculator = () => {
     setInputs(initialInputs)
     setSelectedMonth(1)
@@ -497,6 +550,44 @@ export default function Home() {
                   Uses the Canadian convention of semi-annual compounding. Mortgage insurance is
                   not included.
                 </p>
+                <details className="advanced-panel">
+                  <summary>Advanced buying costs (optional)</summary>
+                  <div className="advanced-content">
+                    <div className="field-grid">
+                      <NumberField
+                        id="monthly-maintenance"
+                        label="Maintenance"
+                        onChange={(value) => updateInput("monthlyMaintenance", value)}
+                        prefix="$"
+                        step={25}
+                        suffix="/ month"
+                        value={inputs.monthlyMaintenance}
+                      />
+                      <NumberField
+                        id="monthly-home-insurance"
+                        label="Homeowner insurance"
+                        onChange={(value) => updateInput("monthlyHomeInsurance", value)}
+                        prefix="$"
+                        step={10}
+                        suffix="/ month"
+                        value={inputs.monthlyHomeInsurance}
+                      />
+                      <NumberField
+                        id="closing-costs"
+                        label="Closing costs"
+                        onChange={(value) => updateInput("closingCosts", value)}
+                        prefix="$"
+                        step={500}
+                        suffix="one-time"
+                        value={inputs.closingCosts}
+                      />
+                    </div>
+                    <p>
+                      Maintenance and insurance recur monthly. Closing costs are paid once and
+                      count as cash paid and a non-equity cost.
+                    </p>
+                  </div>
+                </details>
               </div>
             </section>
 
@@ -549,6 +640,18 @@ export default function Home() {
                 />
                 <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Municipal taxes" />
                 <DetailRow amount={preciseMoney(results.monthlyUtilities)} label="Utilities" />
+                {results.monthlyMaintenance > 0 ? (
+                  <DetailRow
+                    amount={preciseMoney(results.monthlyMaintenance)}
+                    label="Maintenance"
+                  />
+                ) : null}
+                {results.monthlyHomeInsurance > 0 ? (
+                  <DetailRow
+                    amount={preciseMoney(results.monthlyHomeInsurance)}
+                    label="Homeowner insurance"
+                  />
+                ) : null}
                 <DetailRow
                   amount={preciseMoney(results.selectedMonthlyOwnerTotal)}
                   emphasis
@@ -557,9 +660,10 @@ export default function Home() {
               </div>
               <p className="monthly-explainer">
                 <strong>Does the monthly cost change?</strong> In this estimate, the mortgage
-                payment, taxes, and utilities stay level. What changes each month is the split:
-                interest goes down while principal—the part that pays off your mortgage—goes up.
-                Once the mortgage is paid off, only taxes and utilities remain.
+                payment and all entered monthly costs stay level. What changes each month is the
+                mortgage split: interest goes down while principal—the part that pays off your
+                mortgage—goes up. Once the mortgage is paid off, the entered ownership costs
+                remain.
               </p>
 
               <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
@@ -650,13 +754,18 @@ export default function Home() {
                 <p>
                   Principal is the part of each payment that reduces what you still owe. Interest
                   is the cost of borrowing. Municipal taxes are converted from the annual amount
-                  to a monthly cost, then taxes and utilities are accumulated through each year.
+                  to a monthly cost. All entered recurring ownership costs accumulate through each
+                  year; closing costs are counted once.
                 </p>
               </div>
             </div>
 
             <div className="table-wrap">
-              <table className="buying-table">
+              <table
+                className={
+                  hasAdvancedBuyingCosts ? "buying-table with-advanced-costs" : "buying-table"
+                }
+              >
                 <thead>
                   <tr>
                     <th>Year</th>
@@ -666,6 +775,9 @@ export default function Home() {
                     <th>Cumulative interest</th>
                     <th>Cumulative taxes</th>
                     <th>Cumulative utilities</th>
+                    {results.monthlyMaintenance > 0 ? <th>Cumulative maintenance</th> : null}
+                    {results.monthlyHomeInsurance > 0 ? <th>Cumulative insurance</th> : null}
+                    {results.closingCosts > 0 ? <th>Closing costs</th> : null}
                     <th>Owner payments (excl. down payment)</th>
                     <th>Mortgage left</th>
                     <th>Mortgage repaid</th>
@@ -681,11 +793,24 @@ export default function Home() {
                       <td>{money(row.totalInterestPaid)}</td>
                       <td>{money(results.monthlyTaxes * 12 * row.year)}</td>
                       <td>{money(results.monthlyUtilities * 12 * row.year)}</td>
+                      {results.monthlyMaintenance > 0 ? (
+                        <td>{money(results.monthlyMaintenance * 12 * row.year)}</td>
+                      ) : null}
+                      {results.monthlyHomeInsurance > 0 ? (
+                        <td>{money(results.monthlyHomeInsurance * 12 * row.year)}</td>
+                      ) : null}
+                      {results.closingCosts > 0 ? <td>{money(results.closingCosts)}</td> : null}
                       <td>
                         {money(
                           row.totalPrincipalPaid +
                             row.totalInterestPaid +
-                            (results.monthlyTaxes + results.monthlyUtilities) * 12 * row.year,
+                            (results.monthlyTaxes +
+                              results.monthlyUtilities +
+                              results.monthlyMaintenance +
+                              results.monthlyHomeInsurance) *
+                              12 *
+                              row.year +
+                            results.closingCosts,
                         )}
                       </td>
                       <td>{money(row.endingBalance)}</td>
@@ -725,6 +850,26 @@ export default function Home() {
                 <p className="input-note">
                   Rent stays at the same monthly amount. No annual rent increase is applied.
                 </p>
+                <details className="advanced-panel">
+                  <summary>Advanced renting costs (optional)</summary>
+                  <div className="advanced-content">
+                    <div className="field-grid single">
+                      <NumberField
+                        id="monthly-rental-utilities"
+                        label="Rental utilities"
+                        onChange={(value) => updateInput("monthlyRentalUtilities", value)}
+                        prefix="$"
+                        step={10}
+                        suffix="/ month"
+                        value={inputs.monthlyRentalUtilities}
+                      />
+                    </div>
+                    <p>
+                      Enter only utilities paid separately by the renter. Leave this at $0 when
+                      utilities are included in rent.
+                    </p>
+                  </div>
+                </details>
               </div>
             </section>
 
@@ -736,17 +881,23 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="monthly-grid rent-summary">
+              <div className="monthly-grid four-up rent-summary">
                 <div className="monthly-card rent">
                   <span>Monthly rent</span>
                   <strong>{preciseMoney(results.monthlyRent)}</strong>
                 </div>
                 <div className="monthly-card">
-                  <span>Annual rent</span>
-                  <strong>{money(results.monthlyRent * 12)}</strong>
+                  <span>Rental utilities</span>
+                  <strong>{preciseMoney(results.monthlyRentalUtilities)}</strong>
                 </div>
                 <div className="monthly-card total">
-                  <span>Rent through month {results.selectedMonth}</span>
+                  <span>Monthly renting total</span>
+                  <strong>
+                    {preciseMoney(results.monthlyRent + results.monthlyRentalUtilities)}
+                  </strong>
+                </div>
+                <div className="monthly-card total">
+                  <span>Cash paid through month {results.selectedMonth}</span>
                   <strong>{money(results.selectedRentCash)}</strong>
                 </div>
               </div>
@@ -756,8 +907,12 @@ export default function Home() {
               <div className="selected-grid rent-milestones">
                 {[1, 5, 10, 25].map((year) => (
                   <div key={year}>
-                    <span>Rent after {year} {year === 1 ? "year" : "years"}</span>
-                    <strong>{money(results.monthlyRent * 12 * year)}</strong>
+                    <span>Renting cash after {year} {year === 1 ? "year" : "years"}</span>
+                    <strong>
+                      {money(
+                        (results.monthlyRent + results.monthlyRentalUtilities) * 12 * year,
+                      )}
+                    </strong>
                   </div>
                 ))}
               </div>
@@ -770,23 +925,31 @@ export default function Home() {
                 <p className="eyebrow">Rent schedule</p>
                 <h2>Year 1 to year 25</h2>
                 <p>
-                  This projection uses the same monthly rent throughout, with no annual increase.
+                  This projection keeps monthly rent and entered rental utilities level, with no
+                  annual increase.
                 </p>
               </div>
               <div className="schedule-stat rent-stat">
-                <span>Total rent at selected month</span>
+                <span>Total renting cash at selected month</span>
                 <strong>{money(results.selectedRentCash)}</strong>
               </div>
             </div>
 
             <div className="table-wrap">
-              <table className="rent-table">
+              <table
+                className={
+                  hasAdvancedRentingCosts ? "rent-table with-advanced-costs" : "rent-table"
+                }
+              >
                 <thead>
                   <tr>
                     <th>Year</th>
                     <th>Monthly rent</th>
+                    {hasAdvancedRentingCosts ? <th>Monthly utilities</th> : null}
                     <th>Rent paid this year</th>
                     <th>Total rent paid</th>
+                    {hasAdvancedRentingCosts ? <th>Total utilities</th> : null}
+                    <th>Total renting cash</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -794,8 +957,15 @@ export default function Home() {
                     <tr key={row.year}>
                       <td><strong>{row.year}</strong></td>
                       <td>{preciseMoney(results.monthlyRent)}</td>
+                      {hasAdvancedRentingCosts ? (
+                        <td>{preciseMoney(results.monthlyRentalUtilities)}</td>
+                      ) : null}
                       <td>{money(row.annualRent)}</td>
                       <td>{money(row.totalRent)}</td>
+                      {hasAdvancedRentingCosts ? (
+                        <td>{money(row.totalRentalUtilities)}</td>
+                      ) : null}
+                      <td>{money(row.totalRentalCash)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -815,7 +985,7 @@ export default function Home() {
               <div className="sheet-title results-title">
                 <div>
                   <h2>Buy vs. rent through month {results.selectedMonth}</h2>
-                  <span>Buying payments and equity compared with flat rent</span>
+                  <span>Buying payments and equity compared with rent and entered utilities</span>
                 </div>
               </div>
 
@@ -850,8 +1020,8 @@ export default function Home() {
                   <span>
                     <strong>Include taxes and utilities in buying cash paid</strong>
                     <small>
-                      These homeowner costs are not included in rent. Uncheck to compare only
-                      mortgage principal and interest with rent.
+                      These homeowner costs are not included in rent. Advanced costs entered in
+                      either tab remain included.
                     </small>
                   </span>
                 </label>
@@ -893,11 +1063,7 @@ export default function Home() {
                     <div className="comparison-metric cost-metric">
                       <span>Non-equity housing cost</span>
                       <strong>{money(comparisonBuyingCost)}</strong>
-                      <small>
-                        {includeOwnerExtras
-                          ? "Interest + taxes + utilities"
-                          : "Interest only; taxes and utilities excluded"}
-                      </small>
+                      <small>{buyingCostBreakdown}</small>
                     </div>
                   </div>
                   {includeDownPayment ? (
@@ -907,6 +1073,15 @@ export default function Home() {
                         <small>Up-front cash shown separately · included in equity</small>
                       </span>
                       <strong>{money(results.downPayment)}</strong>
+                    </div>
+                  ) : null}
+                  {results.closingCosts > 0 ? (
+                    <div className="comparison-upfront closing-upfront">
+                      <span>
+                        <strong>Closing costs</strong>
+                        <small>One-time cash · included in non-equity cost</small>
+                      </span>
+                      <strong>{money(results.closingCosts)}</strong>
                     </div>
                   ) : null}
                 </section>
@@ -920,7 +1095,11 @@ export default function Home() {
                     <div className="comparison-metric cash-metric">
                       <span>Cash paid</span>
                       <strong>{money(results.selectedRentCash)}</strong>
-                      <small>Flat rent paid to date</small>
+                      <small>
+                        {results.monthlyRentalUtilities > 0
+                          ? "Rent + rental utilities"
+                          : "Flat rent paid to date"}
+                      </small>
                     </div>
                     <div className="comparison-metric equity-metric">
                       <span>Home equity built</span>
@@ -930,7 +1109,7 @@ export default function Home() {
                     <div className="comparison-metric cost-metric">
                       <span>Non-equity housing cost</span>
                       <strong>{money(results.selectedRentCash)}</strong>
-                      <small>All included rent is a housing cost</small>
+                      <small>All entered renting cash is a housing cost</small>
                     </div>
                   </div>
                 </section>
@@ -948,7 +1127,7 @@ export default function Home() {
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
                     <div>
-                      <strong>Buying · cash paid after purchase</strong>
+                      <strong>Buying · cash paid</strong>
                       <small>
                         Principal{includeDownPayment ? " and the down payment build" : " builds"}{" "}
                         equity.{" "}
@@ -960,7 +1139,7 @@ export default function Home() {
                     <strong>{money(comparisonBuyingTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, and ${money(selectedOwnerExtras)} in taxes and utilities` : ""}`}
+                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedAdvancedBuyingCosts > 0 ? `, and ${money(selectedAdvancedBuyingCosts)} in advanced buying costs` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
@@ -981,6 +1160,13 @@ export default function Home() {
                         title={`${money(selectedOwnerExtras)} taxes and utilities`}
                       />
                     ) : null}
+                    {selectedAdvancedBuyingCosts > 0 ? (
+                      <span
+                        className="advanced-buying-fill"
+                        style={{ width: `${comparisonAdvancedBuyingWidth}%` }}
+                        title={`${money(selectedAdvancedBuyingCosts)} advanced buying costs`}
+                      />
+                    ) : null}
                   </div>
                   <div className="comparison-legend">
                     <span><i className="legend principal" />Principal / equity {money(results.selectedPrincipalPaid)}</span>
@@ -989,6 +1175,12 @@ export default function Home() {
                       <span>
                         <i className="legend owner-extras" />
                         Taxes + utilities {money(selectedOwnerExtras)}
+                      </span>
+                    ) : null}
+                    {selectedAdvancedBuyingCosts > 0 ? (
+                      <span>
+                        <i className="legend advanced-buying" />
+                        Advanced costs {money(selectedAdvancedBuyingCosts)}
                       </span>
                     ) : null}
                   </div>
@@ -1032,31 +1224,48 @@ export default function Home() {
                     <strong>{money(results.selectedRentCash)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(results.selectedRentCash)} in rent payments and $0 in home equity`}
+                    aria-label={`${money(results.selectedRentCash)} in renting cash paid: ${money(results.selectedRentPaid)} rent and ${money(results.selectedRentalUtilitiesPaid)} rental utilities`}
                     className="comparison-track"
                     role="img"
                   >
                     <span
                       className="rent-fill"
                       style={{ width: `${comparisonRentWidth}%` }}
-                      title={`${money(results.selectedRentCash)} rent`}
+                      title={`${money(results.selectedRentPaid)} rent`}
                     />
+                    {results.selectedRentalUtilitiesPaid > 0 ? (
+                      <span
+                        className="rental-utilities-fill"
+                        style={{ width: `${comparisonRentUtilitiesWidth}%` }}
+                        title={`${money(results.selectedRentalUtilitiesPaid)} rental utilities`}
+                      />
+                    ) : null}
                   </div>
                   <div className="comparison-legend">
-                    <span><i className="legend rent-legend" />Rent cost {money(results.selectedRentCash)}</span>
+                    <span><i className="legend rent-legend" />Rent {money(results.selectedRentPaid)}</span>
+                    {results.selectedRentalUtilitiesPaid > 0 ? (
+                      <span>
+                        <i className="legend rental-utilities" />
+                        Rental utilities {money(results.selectedRentalUtilitiesPaid)}
+                      </span>
+                    ) : null}
                     <span><i className="legend empty-legend" />Home equity $0</span>
                   </div>
                 </div>
               </div>
 
               <p className="comparison-note">
-                Cash paid is money paid after the purchase and keeps the down payment separate.
-                Mortgage equity is principal paid
+                Cash paid includes enabled payments and entered closing costs while keeping the
+                down payment separate. Mortgage equity is principal paid
                 {includeDownPayment ? " plus the down payment" : ""}. Buying&apos;s non-equity
                 housing cost is interest
-                {includeOwnerExtras ? " plus municipal taxes and utilities" : ""}; renting&apos;s
-                cash paid is also its included housing cost. Maintenance, insurance, closing
-                costs, and changes in home value are not included.
+                {includeOwnerExtras ? " plus municipal taxes and utilities" : ""}
+                {selectedAdvancedBuyingCosts > 0
+                  ? ", plus entered maintenance, insurance, and closing costs"
+                  : ""}; renting&apos;s cash paid includes rent
+                {results.monthlyRentalUtilities > 0 ? " and entered rental utilities" : ""} and is
+                also its included housing cost. Changes in home value and any costs left at $0
+                are not included.
                 {includeDownPayment
                   ? " The down payment is shown separately and included in mortgage equity."
                   : " The down payment is excluded from mortgage equity."}
@@ -1079,7 +1288,13 @@ export default function Home() {
             </div>
 
             <div className="table-wrap">
-              <table className="comparison-table">
+              <table
+                className={
+                  hasAdvancedBuyingCosts || hasAdvancedRentingCosts
+                    ? "comparison-table with-advanced-costs"
+                    : "comparison-table"
+                }
+              >
                 <thead>
                   <tr>
                     <th>Year</th>
@@ -1090,7 +1305,9 @@ export default function Home() {
                     <th>Non-equity buying cost</th>
                     <th>Interest cost</th>
                     <th>Taxes + utilities</th>
+                    {hasAdvancedBuyingCosts ? <th>Advanced buying costs</th> : null}
                     <th>Rent cash paid</th>
+                    {hasAdvancedRentingCosts ? <th>Rental utilities</th> : null}
                     <th>Rent home equity</th>
                   </tr>
                 </thead>
@@ -1106,7 +1323,11 @@ export default function Home() {
                               ? (results.monthlyTaxes + results.monthlyUtilities) *
                                 12 *
                                 row.year
-                              : 0),
+                              : 0) +
+                            (results.monthlyMaintenance + results.monthlyHomeInsurance) *
+                              12 *
+                              row.year +
+                            results.closingCosts,
                         )}
                       </td>
                       <td>
@@ -1124,7 +1345,11 @@ export default function Home() {
                               ? (results.monthlyTaxes + results.monthlyUtilities) *
                                 12 *
                                 row.year
-                              : 0),
+                              : 0) +
+                            (results.monthlyMaintenance + results.monthlyHomeInsurance) *
+                              12 *
+                              row.year +
+                            results.closingCosts,
                         )}
                       </td>
                       <td>{money(row.totalInterestPaid)}</td>
@@ -1137,7 +1362,20 @@ export default function Home() {
                             )
                           : "Excluded"}
                       </td>
-                      <td>{money(results.rentYears[index]?.totalRent ?? 0)}</td>
+                      {hasAdvancedBuyingCosts ? (
+                        <td>
+                          {money(
+                            (results.monthlyMaintenance + results.monthlyHomeInsurance) *
+                              12 *
+                              row.year +
+                              results.closingCosts,
+                          )}
+                        </td>
+                      ) : null}
+                      <td>{money(results.rentYears[index]?.totalRentalCash ?? 0)}</td>
+                      {hasAdvancedRentingCosts ? (
+                        <td>{money(results.rentYears[index]?.totalRentalUtilities ?? 0)}</td>
+                      ) : null}
                       <td>$0</td>
                     </tr>
                   ))}
@@ -1150,9 +1388,9 @@ export default function Home() {
 
       <footer>
         <p>
-          Planning estimate only. Buying excludes closing costs, maintenance, insurance,
-          appreciation, investment returns, mortgage insurance, and renewal-rate changes. Renting
-          excludes utilities and tenant insurance.
+          Planning estimate only. Entered maintenance, insurance, closing costs, and rental
+          utilities are included. Home-price changes, investment returns, mortgage insurance,
+          renewal-rate changes, and tenant insurance are excluded.
         </p>
       </footer>
     </main>

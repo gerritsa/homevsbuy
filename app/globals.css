@@ -17,6 +17,8 @@
   --rent: #7c3aed;
   --tax: #0891b2;
   --down-payment: #ca8a04;
+  --advanced: #db2777;
+  --rental-utilities: #c026d3;
   --shadow: 0 18px 44px rgba(23, 32, 51, 0.08);
 }
 
@@ -350,6 +352,41 @@ footer {
 .input-note {
   margin: 14px 0 0;
   line-height: 1.5;
+}
+
+.advanced-panel {
+  margin-top: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: white;
+}
+
+.advanced-panel summary {
+  padding: 12px 14px;
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.advanced-panel[open] summary {
+  border-bottom: 1px solid var(--line);
+  background: var(--sheet);
+}
+
+.advanced-content {
+  padding: 14px;
+}
+
+.advanced-content .field-grid {
+  margin-top: 0;
+}
+
+.advanced-content > p {
+  margin: 11px 0 0;
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 1.45;
 }
 
 .results-book {
@@ -908,6 +945,10 @@ footer {
   font-size: 0.94rem;
 }
 
+.comparison-upfront.closing-upfront {
+  background: #fce7f3;
+}
+
 .comparison-graph {
   padding: 20px;
 }
@@ -976,6 +1017,14 @@ footer {
   background: var(--down-payment);
 }
 
+.advanced-buying-fill {
+  background: var(--advanced);
+}
+
+.rental-utilities-fill {
+  background: var(--rental-utilities);
+}
+
 .rent-fill {
   background: var(--rent);
 }
@@ -1005,6 +1054,14 @@ footer {
 
 .legend.down-payment {
   background: var(--down-payment);
+}
+
+.legend.advanced-buying {
+  background: var(--advanced);
+}
+
+.legend.rental-utilities {
+  background: var(--rental-utilities);
 }
 
 .legend.empty-legend {
@@ -1117,12 +1174,24 @@ tbody tr:hover {
   min-width: 650px;
 }
 
+.rent-table.with-advanced-costs {
+  min-width: 900px;
+}
+
 .buying-table {
   min-width: 1180px;
 }
 
+.buying-table.with-advanced-costs {
+  min-width: 1500px;
+}
+
 .comparison-table {
   min-width: 1100px;
+}
+
+.comparison-table.with-advanced-costs {
+  min-width: 1320px;
 }
 
 .excluded-cell {
