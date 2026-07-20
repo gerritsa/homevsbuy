@@ -63,6 +63,36 @@ function percent(value: number) {
   return `${(Number.isFinite(value) ? value : 0).toFixed(1)}%`
 }
 
+function InfoButton({ label }: { label: string }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const tooltipId = useId()
+
+  return (
+    <span className="info-wrapper">
+      <button
+        aria-controls={isOpen ? tooltipId : undefined}
+        aria-expanded={isOpen}
+        aria-label={label}
+        className="info-dot"
+        onClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          setIsOpen((current) => !current)
+        }}
+        title={label}
+        type="button"
+      >
+        i
+      </button>
+      {isOpen ? (
+        <span className="info-popover" id={tooltipId} role="tooltip">
+          {label}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
 function NumberField({
   id,
   label,
@@ -87,8 +117,6 @@ function NumberField({
   step?: number | "any"
 }) {
   const [draftValue, setDraftValue] = useState(String(value))
-  const [isHintOpen, setIsHintOpen] = useState(false)
-  const hintId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -103,29 +131,8 @@ function NumberField({
         <label className="field-label" htmlFor={id}>
           {label}
         </label>
-        {hint ? (
-          <button
-            aria-controls={isHintOpen ? hintId : undefined}
-            aria-expanded={isHintOpen}
-            aria-label={hint}
-            className="info-dot"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              setIsHintOpen((current) => !current)
-            }}
-            title={hint}
-            type="button"
-          >
-            i
-          </button>
-        ) : null}
+        {hint ? <InfoButton label={hint} /> : null}
       </div>
-      {hint && isHintOpen ? (
-        <p className="field-hint-popover" id={hintId} role="tooltip">
-          {hint}
-        </p>
-      ) : null}
       <span className="input-shell">
         {prefix ? <span className="input-affix">{prefix}</span> : null}
         <input
@@ -330,6 +337,7 @@ export default function Home() {
   const selectedHomeInsurancePaid = results.monthlyHomeInsurance * results.selectedMonth
   const selectedAdvancedBuyingCosts =
     selectedMaintenancePaid + selectedHomeInsurancePaid + results.closingCosts
+  const upfrontBuyingCosts = results.downPayment + results.closingCosts
   const comparisonDownPayment = includeDownPaymentInComparison ? results.downPayment : 0
   const comparisonBuyingTotal =
     comparisonDownPayment +
@@ -649,20 +657,13 @@ export default function Home() {
                   <strong>{preciseMoney(results.selectedMonthMortgagePayment)}</strong>
                 </div>
                 <div className="monthly-card">
-                  <span>Taxes / month</span>
+                  <span>Municipal taxes/month</span>
                   <strong>{preciseMoney(results.monthlyTaxes)}</strong>
                 </div>
                 <div className="monthly-card">
                   <span className="label-with-info">
                     Monthly costs / month
-                    <i
-                      aria-label="Monthly costs include utilities, maintenance, and homeowner insurance when entered."
-                      className="info-dot"
-                      role="img"
-                      title="Includes utilities, maintenance, and homeowner insurance when entered."
-                    >
-                      i
-                    </i>
+                    <InfoButton label="Monthly costs include utilities, maintenance, and homeowner insurance when entered." />
                   </span>
                   <strong>{preciseMoney(monthlyOwnershipCosts)}</strong>
                 </div>
@@ -695,6 +696,27 @@ export default function Home() {
                   label="Total monthly spending"
                 />
               </div>
+
+              <section className="upfront-costs" aria-label="Upfront buying costs">
+                <h3>Upfront costs</h3>
+                <div className="detail-sheet upfront-detail-sheet">
+                  <DetailRow
+                    amount={money(results.downPayment)}
+                    label="Down payment"
+                    note="Paid at purchase"
+                  />
+                  <DetailRow
+                    amount={money(results.closingCosts)}
+                    label="Closing costs"
+                    note="Entered advanced cost"
+                  />
+                  <DetailRow
+                    amount={money(upfrontBuyingCosts)}
+                    emphasis
+                    label="Total upfront costs"
+                  />
+                </div>
+              </section>
               <p className="monthly-explainer">
                 <strong>Does the monthly cost change?</strong> In this estimate, the mortgage
                 payment stays level within each five-year term and is recalculated at renewal using

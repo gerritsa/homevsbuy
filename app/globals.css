@@ -363,12 +363,19 @@ footer {
   padding: 0;
 }
 
-.field-hint-popover {
+.info-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.info-popover {
   position: absolute;
   z-index: 20;
-  top: 30px;
-  left: 10px;
-  width: min(280px, calc(100% + 120px));
+  top: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(280px, calc(100vw - 48px));
   margin: 0;
   padding: 9px 10px;
   border: 1px solid var(--line-strong);
@@ -379,6 +386,8 @@ footer {
   font-size: 0.68rem;
   font-weight: 650;
   line-height: 1.42;
+  text-align: left;
+  text-transform: none;
 }
 
 .monthly-card strong,
@@ -519,6 +528,19 @@ footer {
   margin-top: 16px;
   border-top: 1px solid var(--line-strong);
   border-left: 1px solid var(--line-strong);
+}
+
+.upfront-costs {
+  margin-top: 18px;
+}
+
+.upfront-costs h3 {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.upfront-detail-sheet {
+  margin-top: 8px;
 }
 
 .detail-row {
