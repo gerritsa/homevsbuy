@@ -338,8 +338,10 @@ export default function Home() {
     principalVsInterestTotal === 0 ? 0 : (results.selectedPrincipalPaid / principalVsInterestTotal) * 100
   const selectedOwnerExtras =
     (results.monthlyTaxes + results.monthlyUtilities) * results.selectedMonth
+  const selectedMaintenancePaid = results.monthlyMaintenance * results.selectedMonth
+  const selectedHomeInsurancePaid = results.monthlyHomeInsurance * results.selectedMonth
   const selectedAdvancedBuyingCosts =
-    results.selectedOwnerAdvancedPaid + results.closingCosts
+    selectedMaintenancePaid + selectedHomeInsurancePaid + results.closingCosts
   const comparisonBuyingTotal =
     principalVsInterestTotal +
     (includeOwnerExtras ? selectedOwnerExtras : 0) +
@@ -380,8 +382,9 @@ export default function Home() {
   const comparisonInterestWidth = (results.selectedInterestPaid / comparisonMax) * 100
   const comparisonOwnerExtrasWidth =
     includeOwnerExtras ? (selectedOwnerExtras / comparisonMax) * 100 : 0
-  const comparisonAdvancedBuyingWidth =
-    (selectedAdvancedBuyingCosts / comparisonMax) * 100
+  const comparisonMaintenanceWidth = (selectedMaintenancePaid / comparisonMax) * 100
+  const comparisonHomeInsuranceWidth = (selectedHomeInsurancePaid / comparisonMax) * 100
+  const comparisonClosingCostsWidth = (results.closingCosts / comparisonMax) * 100
   const comparisonDownPaymentWidth =
     includeDownPayment ? (results.downPayment / comparisonMax) * 100 : 0
   const comparisonRentWidth = (results.selectedRentPaid / comparisonMax) * 100
@@ -1020,8 +1023,8 @@ export default function Home() {
                   <span>
                     <strong>Include taxes and utilities in buying cash paid</strong>
                     <small>
-                      These homeowner costs are not included in rent. Advanced costs entered in
-                      either tab remain included.
+                      Turn off to exclude these two ownership costs. Maintenance, homeowner
+                      insurance, closing costs, and rental utilities remain included when entered.
                     </small>
                   </span>
                 </label>
@@ -1139,7 +1142,7 @@ export default function Home() {
                     <strong>{money(comparisonBuyingTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedAdvancedBuyingCosts > 0 ? `, and ${money(selectedAdvancedBuyingCosts)} in advanced buying costs` : ""}`}
+                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
@@ -1160,11 +1163,25 @@ export default function Home() {
                         title={`${money(selectedOwnerExtras)} taxes and utilities`}
                       />
                     ) : null}
-                    {selectedAdvancedBuyingCosts > 0 ? (
+                    {selectedMaintenancePaid > 0 ? (
                       <span
-                        className="advanced-buying-fill"
-                        style={{ width: `${comparisonAdvancedBuyingWidth}%` }}
-                        title={`${money(selectedAdvancedBuyingCosts)} advanced buying costs`}
+                        className="maintenance-fill"
+                        style={{ width: `${comparisonMaintenanceWidth}%` }}
+                        title={`${money(selectedMaintenancePaid)} maintenance`}
+                      />
+                    ) : null}
+                    {selectedHomeInsurancePaid > 0 ? (
+                      <span
+                        className="home-insurance-fill"
+                        style={{ width: `${comparisonHomeInsuranceWidth}%` }}
+                        title={`${money(selectedHomeInsurancePaid)} homeowner insurance`}
+                      />
+                    ) : null}
+                    {results.closingCosts > 0 ? (
+                      <span
+                        className="closing-costs-fill"
+                        style={{ width: `${comparisonClosingCostsWidth}%` }}
+                        title={`${money(results.closingCosts)} closing costs`}
                       />
                     ) : null}
                   </div>
@@ -1177,10 +1194,22 @@ export default function Home() {
                         Taxes + utilities {money(selectedOwnerExtras)}
                       </span>
                     ) : null}
-                    {selectedAdvancedBuyingCosts > 0 ? (
+                    {selectedMaintenancePaid > 0 ? (
                       <span>
-                        <i className="legend advanced-buying" />
-                        Advanced costs {money(selectedAdvancedBuyingCosts)}
+                        <i className="legend maintenance" />
+                        Maintenance {money(selectedMaintenancePaid)}
+                      </span>
+                    ) : null}
+                    {selectedHomeInsurancePaid > 0 ? (
+                      <span>
+                        <i className="legend home-insurance" />
+                        Homeowner insurance {money(selectedHomeInsurancePaid)}
+                      </span>
+                    ) : null}
+                    {results.closingCosts > 0 ? (
+                      <span>
+                        <i className="legend closing-costs" />
+                        Closing costs {money(results.closingCosts)}
                       </span>
                     ) : null}
                   </div>
@@ -1260,9 +1289,10 @@ export default function Home() {
                 {includeDownPayment ? " plus the down payment" : ""}. Buying&apos;s non-equity
                 housing cost is interest
                 {includeOwnerExtras ? " plus municipal taxes and utilities" : ""}
-                {selectedAdvancedBuyingCosts > 0
-                  ? ", plus entered maintenance, insurance, and closing costs"
-                  : ""}; renting&apos;s cash paid includes rent
+                {selectedMaintenancePaid > 0 ? " plus entered maintenance" : ""}
+                {selectedHomeInsurancePaid > 0 ? " plus entered homeowner insurance" : ""}
+                {results.closingCosts > 0 ? " plus entered closing costs" : ""};
+                renting&apos;s cash paid includes rent
                 {results.monthlyRentalUtilities > 0 ? " and entered rental utilities" : ""} and is
                 also its included housing cost. Changes in home value and any costs left at $0
                 are not included.
@@ -1305,7 +1335,9 @@ export default function Home() {
                     <th>Non-equity buying cost</th>
                     <th>Interest cost</th>
                     <th>Taxes + utilities</th>
-                    {hasAdvancedBuyingCosts ? <th>Advanced buying costs</th> : null}
+                    {results.monthlyMaintenance > 0 ? <th>Maintenance</th> : null}
+                    {results.monthlyHomeInsurance > 0 ? <th>Homeowner insurance</th> : null}
+                    {results.closingCosts > 0 ? <th>Closing costs</th> : null}
                     <th>Rent cash paid</th>
                     {hasAdvancedRentingCosts ? <th>Rental utilities</th> : null}
                     <th>Rent home equity</th>
@@ -1362,16 +1394,13 @@ export default function Home() {
                             )
                           : "Excluded"}
                       </td>
-                      {hasAdvancedBuyingCosts ? (
-                        <td>
-                          {money(
-                            (results.monthlyMaintenance + results.monthlyHomeInsurance) *
-                              12 *
-                              row.year +
-                              results.closingCosts,
-                          )}
-                        </td>
+                      {results.monthlyMaintenance > 0 ? (
+                        <td>{money(results.monthlyMaintenance * 12 * row.year)}</td>
                       ) : null}
+                      {results.monthlyHomeInsurance > 0 ? (
+                        <td>{money(results.monthlyHomeInsurance * 12 * row.year)}</td>
+                      ) : null}
+                      {results.closingCosts > 0 ? <td>{money(results.closingCosts)}</td> : null}
                       <td>{money(results.rentYears[index]?.totalRentalCash ?? 0)}</td>
                       {hasAdvancedRentingCosts ? (
                         <td>{money(results.rentYears[index]?.totalRentalUtilities ?? 0)}</td>
