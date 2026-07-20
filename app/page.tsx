@@ -1406,18 +1406,18 @@ export default function Home() {
                       <th className="table-cmhc"><span className="stacked-heading"><span>CMHC</span><span>premium</span></span></th>
                     ) : null}
                     <th className="table-principal"><span className="stacked-heading"><span>Principal</span><span>paid</span></span></th>
+                    <th className="table-non-equity">
+                      <span className="stacked-heading">
+                        <span>Costs not</span>
+                        <span>building equity</span>
+                      </span>
+                    </th>
                     <th className="table-interest"><span className="stacked-heading"><span>Mortgage</span><span>interest</span></span></th>
                     <th className="table-owner-extras">
                       <span className="stacked-heading">
                         <span>Taxes + utilities</span>
                         {results.monthlyMaintenance > 0 ? <span>+ maintenance</span> : null}
                         {results.monthlyHomeInsurance > 0 ? <span>+ insurance</span> : null}
-                      </span>
-                    </th>
-                    <th className="table-non-equity">
-                      <span className="stacked-heading">
-                        <span>Costs not</span>
-                        <span>building equity</span>
                       </span>
                     </th>
                     {results.closingCosts > 0 ? (
@@ -1458,6 +1458,14 @@ export default function Home() {
                         <td className="table-cmhc">{money(results.cmhcPremium)}</td>
                       ) : null}
                       <td className="table-principal">{money(row.totalPrincipalPaid)}</td>
+                      <td className="table-non-equity">
+                        {money(
+                          results.cmhcPremium +
+                            row.totalInterestPaid +
+                            yearlyOwnershipCosts +
+                            results.closingCosts,
+                        )}
+                      </td>
                       <td className="table-interest">{money(row.totalInterestPaid)}</td>
                       <td
                         className={
@@ -1467,14 +1475,6 @@ export default function Home() {
                         }
                       >
                         {yearlyOwnershipCosts > 0 ? money(yearlyOwnershipCosts) : "Excluded"}
-                      </td>
-                      <td className="table-non-equity">
-                        {money(
-                          results.cmhcPremium +
-                            row.totalInterestPaid +
-                            yearlyOwnershipCosts +
-                            results.closingCosts,
-                        )}
                       </td>
                       {results.closingCosts > 0 ? (
                         <td className="table-closing">{money(results.closingCosts)}</td>

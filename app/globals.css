@@ -1379,9 +1379,7 @@ tbody tr:hover {
 .comparison-table th.table-equity,
 .comparison-table td.table-equity,
 .comparison-table th.table-principal,
-.comparison-table td.table-principal,
-.comparison-table th.table-rent-equity,
-.comparison-table td.table-rent-equity {
+.comparison-table td.table-principal {
   background: color-mix(in srgb, var(--principal) 12%, white);
 }
 
@@ -1393,13 +1391,10 @@ tbody tr:hover {
 .comparison-table th.table-non-equity,
 .comparison-table td.table-non-equity,
 .comparison-table th.table-interest,
-.comparison-table td.table-interest {
-  background: color-mix(in srgb, var(--interest) 12%, white);
-}
-
+.comparison-table td.table-interest,
 .comparison-table th.table-owner-extras,
 .comparison-table td.table-owner-extras {
-  background: color-mix(in srgb, var(--tax) 12%, white);
+  background: color-mix(in srgb, var(--interest) 12%, white);
 }
 
 .comparison-table th.table-closing,
@@ -1408,7 +1403,9 @@ tbody tr:hover {
 }
 
 .comparison-table th.table-rent,
-.comparison-table td.table-rent {
+.comparison-table td.table-rent,
+.comparison-table th.table-rent-equity,
+.comparison-table td.table-rent-equity {
   background: color-mix(in srgb, var(--rent) 12%, white);
 }
 
