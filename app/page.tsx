@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 type CalculatorInputs = {
   purchasePrice: number
@@ -160,6 +160,15 @@ function NumberField({
   max?: number
   step?: number | "any"
 }) {
+  const [draftValue, setDraftValue] = useState(String(value))
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setDraftValue(String(value))
+    }
+  }, [value])
+
   return (
     <label className="field" htmlFor={id}>
       <span className="field-label">{label}</span>
@@ -170,10 +179,27 @@ function NumberField({
           inputMode="decimal"
           max={max}
           min={min}
-          onChange={(event) => onChange(Number(event.target.value))}
+          onBlur={() => {
+            if (draftValue.trim() === "") {
+              setDraftValue("0")
+              onChange(0)
+            }
+          }}
+          onChange={(event) => {
+            const nextValue = event.target.value
+            setDraftValue(nextValue)
+
+            if (nextValue !== "") {
+              const nextNumber = Number(nextValue)
+              if (Number.isFinite(nextNumber)) {
+                onChange(nextNumber)
+              }
+            }
+          }}
           step={step}
           type="number"
-          value={value}
+          ref={inputRef}
+          value={draftValue}
         />
         {suffix ? <span className="input-affix suffix">{suffix}</span> : null}
       </span>
@@ -249,7 +275,6 @@ export default function Home() {
   const [inputs, setInputs] = useState(initialInputs)
   const [activeTab, setActiveTab] = useState<"buy" | "rent" | "compare">("buy")
   const [selectedMonth, setSelectedMonth] = useState(1)
-  const [showGraph, setShowGraph] = useState(true)
   const [includeOwnerExtras, setIncludeOwnerExtras] = useState(true)
   const [includeDownPayment, setIncludeDownPayment] = useState(false)
 
@@ -393,7 +418,6 @@ export default function Home() {
   const resetCalculator = () => {
     setInputs(initialInputs)
     setSelectedMonth(1)
-    setShowGraph(true)
     setIncludeOwnerExtras(true)
     setIncludeDownPayment(false)
   }
@@ -597,19 +621,12 @@ export default function Home() {
             <section className="results-book" aria-live="polite">
               <div className="sheet-title results-title">
                 <div>
-                  <h2>Buying cost at month {results.selectedMonth}</h2>
-                  <span>Updates with the timeline slider</span>
+                  <h2>Monthly spending in month {results.selectedMonth}</h2>
+                  <span>Move the timeline slider to compare any month</span>
                 </div>
-                <button
-                  aria-controls="mortgage-graph"
-                  aria-expanded={showGraph}
-                  className={showGraph ? "graph-toggle active" : "graph-toggle"}
-                  onClick={() => setShowGraph((current) => !current)}
-                  type="button"
-                >
-                  {showGraph ? "Hide graph" : "Show graph"}
-                </button>
               </div>
+
+              <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
 
               <div className="monthly-grid four-up">
                 <div className="monthly-card owner">
@@ -658,7 +675,7 @@ export default function Home() {
                 <DetailRow
                   amount={preciseMoney(results.selectedMonthlyOwnerTotal)}
                   emphasis
-                  label="Total monthly cash out"
+                  label="Total monthly spending"
                 />
               </div>
               <p className="monthly-explainer">
@@ -669,83 +686,72 @@ export default function Home() {
                 remain.
               </p>
 
-              <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
-
-              <div className="selected-grid">
-                <div>
-                  <span>Total principal paid</span>
-                  <strong>{money(results.selectedPrincipalPaid)}</strong>
+              <div className="graph-panel" id="mortgage-graph">
+                <div className="graph-heading">
+                  <div>
+                    <p className="card-kicker">Mortgage graph</p>
+                    <h3>Where your mortgage payments went</h3>
+                  </div>
+                  <span>Through month {results.selectedMonth}</span>
                 </div>
-                <div>
-                  <span>Total interest paid</span>
-                  <strong>{money(results.selectedInterestPaid)}</strong>
+                <div className="payment-total">
+                  <span>Total mortgage payments to date</span>
+                  <strong>{money(principalVsInterestTotal)}</strong>
+                  <small>
+                    Down payment, taxes, utilities, and advanced costs are not included here.
+                  </small>
                 </div>
-                <div>
-                  <span>Mortgage left to pay</span>
-                  <strong>{money(results.balanceAtSelectedMonth)}</strong>
+                <div
+                  aria-label={`${money(principalVsInterestTotal)} in total mortgage payments: ${money(results.selectedPrincipalPaid)} principal and ${money(results.selectedInterestPaid)} interest`}
+                  className="payment-split-bar"
+                  role="img"
+                >
+                  <span
+                    className="principal"
+                    style={{ width: `${selectedPrincipalPercent}%` }}
+                    title={`${percent(selectedPrincipalPercent)} principal`}
+                  />
+                  <span
+                    className="interest"
+                    style={{ width: `${selectedInterestPercent}%` }}
+                    title={`${percent(selectedInterestPercent)} interest`}
+                  />
                 </div>
-                <div>
-                  <span>Mortgage repaid</span>
-                  <strong>{percent(results.paidOffAtSelectedMonth)}</strong>
+                <div className="payment-split-cards">
+                  <div className="principal-card">
+                    <div>
+                      <i className="legend principal" />
+                      <span>Principal paid</span>
+                    </div>
+                    <strong>{money(results.selectedPrincipalPaid)}</strong>
+                    <small>
+                      {percent(selectedPrincipalPercent)} of payments. This reduced your mortgage
+                      balance and became home equity.
+                    </small>
+                  </div>
+                  <div className="interest-card">
+                    <div>
+                      <i className="legend interest" />
+                      <span>Interest paid</span>
+                    </div>
+                    <strong>{money(results.selectedInterestPaid)}</strong>
+                    <small>
+                      {percent(selectedInterestPercent)} of payments. This was the cost of
+                      borrowing and did not reduce your balance.
+                    </small>
+                  </div>
+                </div>
+                <div className="mortgage-status-grid">
+                  <div>
+                    <span>Mortgage left to pay</span>
+                    <strong>{money(results.balanceAtSelectedMonth)}</strong>
+                  </div>
+                  <div>
+                    <span>Mortgage repaid</span>
+                    <strong>{percent(results.paidOffAtSelectedMonth)}</strong>
+                  </div>
                 </div>
               </div>
-
-              {showGraph ? (
-                <div className="graph-panel" id="mortgage-graph">
-                  <div className="graph-heading">
-                    <div>
-                      <p className="card-kicker">Mortgage graph</p>
-                      <h3>Where your mortgage payments went</h3>
-                    </div>
-                    <span>Through month {results.selectedMonth}</span>
-                  </div>
-                  <div className="payment-total">
-                    <span>Total mortgage payments to date</span>
-                    <strong>{money(principalVsInterestTotal)}</strong>
-                    <small>Down payment, taxes, and utilities are not included here.</small>
-                  </div>
-                  <div
-                    aria-label={`${money(principalVsInterestTotal)} in total mortgage payments: ${money(results.selectedPrincipalPaid)} principal and ${money(results.selectedInterestPaid)} interest`}
-                    className="payment-split-bar"
-                    role="img"
-                  >
-                    <span
-                      className="principal"
-                      style={{ width: `${selectedPrincipalPercent}%` }}
-                      title={`${percent(selectedPrincipalPercent)} principal`}
-                    />
-                    <span
-                      className="interest"
-                      style={{ width: `${selectedInterestPercent}%` }}
-                      title={`${percent(selectedInterestPercent)} interest`}
-                    />
-                  </div>
-                  <div className="payment-split-cards">
-                    <div className="principal-card">
-                      <div>
-                        <i className="legend principal" />
-                        <span>Principal paid</span>
-                      </div>
-                      <strong>{money(results.selectedPrincipalPaid)}</strong>
-                      <small>
-                        {percent(selectedPrincipalPercent)} of payments. This reduced your mortgage
-                        balance and became home equity.
-                      </small>
-                    </div>
-                    <div className="interest-card">
-                      <div>
-                        <i className="legend interest" />
-                        <span>Interest paid</span>
-                      </div>
-                      <strong>{money(results.selectedInterestPaid)}</strong>
-                      <small>
-                        {percent(selectedInterestPercent)} of payments. This was the cost of
-                        borrowing and did not reduce your balance.
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
             </section>
           </div>
 

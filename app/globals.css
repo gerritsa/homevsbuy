@@ -91,7 +91,6 @@ footer {
 }
 
 .reset-button,
-.graph-toggle,
 .tab {
   border: 1px solid var(--line-strong);
   background: white;
@@ -106,7 +105,6 @@ footer {
 }
 
 .reset-button:hover,
-.graph-toggle:hover,
 .tab:hover {
   border-color: var(--blue);
 }
@@ -407,19 +405,6 @@ footer {
   align-items: center;
 }
 
-.graph-toggle {
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 6px;
-  font-size: 0.78rem;
-}
-
-.graph-toggle.active {
-  border-color: var(--blue);
-  background: var(--blue);
-  color: white;
-}
-
 .monthly-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -607,6 +592,37 @@ footer {
 }
 
 .selected-grid strong {
+  font-size: 1.02rem;
+}
+
+.mortgage-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+
+.mortgage-status-grid > div {
+  padding: 13px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: white;
+}
+
+.mortgage-status-grid span,
+.mortgage-status-grid strong {
+  display: block;
+}
+
+.mortgage-status-grid span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.mortgage-status-grid strong {
+  margin-top: 7px;
   font-size: 1.02rem;
 }
 
@@ -1282,6 +1298,7 @@ footer {
   .formula-grid,
   .monthly-grid,
   .selected-grid,
+  .mortgage-status-grid,
   .payment-split-cards,
   .comparison-assumptions,
   .comparison-metrics {
