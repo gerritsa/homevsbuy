@@ -242,6 +242,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"buy" | "rent" | "compare">("buy")
   const [selectedMonth, setSelectedMonth] = useState(1)
   const [showGraph, setShowGraph] = useState(true)
+  const [includeOwnerExtras, setIncludeOwnerExtras] = useState(true)
 
   const results = useMemo(() => {
     const purchasePrice = Math.max(0, inputs.purchasePrice)
@@ -306,21 +307,21 @@ export default function Home() {
     principalVsInterestTotal === 0 ? 0 : (results.selectedInterestPaid / principalVsInterestTotal) * 100
   const selectedPrincipalPercent =
     principalVsInterestTotal === 0 ? 0 : (results.selectedPrincipalPaid / principalVsInterestTotal) * 100
-  const comparisonMax = Math.max(1, principalVsInterestTotal, results.selectedRentCash)
+  const selectedOwnerExtras =
+    (results.monthlyTaxes + results.monthlyUtilities) * results.selectedMonth
+  const comparisonBuyingTotal =
+    principalVsInterestTotal + (includeOwnerExtras ? selectedOwnerExtras : 0)
+  const comparisonMax = Math.max(1, comparisonBuyingTotal, results.selectedRentCash)
   const comparisonPrincipalWidth = (results.selectedPrincipalPaid / comparisonMax) * 100
   const comparisonInterestWidth = (results.selectedInterestPaid / comparisonMax) * 100
+  const comparisonOwnerExtrasWidth =
+    includeOwnerExtras ? (selectedOwnerExtras / comparisonMax) * 100 : 0
   const comparisonRentWidth = (results.selectedRentCash / comparisonMax) * 100
-  const totalPaymentDifference = Math.abs(principalVsInterestTotal - results.selectedRentCash)
-  const lowerPaymentOption =
-    principalVsInterestTotal === results.selectedRentCash
-      ? "The totals are equal"
-      : principalVsInterestTotal < results.selectedRentCash
-        ? "Buying mortgage payments are lower"
-        : "Rent payments are lower"
   const resetCalculator = () => {
     setInputs(initialInputs)
     setSelectedMonth(1)
     setShowGraph(true)
+    setIncludeOwnerExtras(true)
   }
 
   return (
@@ -630,13 +631,14 @@ export default function Home() {
                 <h2>Year 1 to year 25</h2>
                 <p>
                   Principal is the part of each payment that reduces what you still owe. Interest
-                  is the cost of borrowing.
+                  is the cost of borrowing. Municipal taxes are converted from the annual amount
+                  to a monthly cost, then taxes and utilities are accumulated through each year.
                 </p>
               </div>
             </div>
 
             <div className="table-wrap">
-              <table>
+              <table className="buying-table">
                 <thead>
                   <tr>
                     <th>Year</th>
@@ -644,6 +646,9 @@ export default function Home() {
                     <th>Interest paid</th>
                     <th>Total principal</th>
                     <th>Total interest</th>
+                    <th>Total taxes</th>
+                    <th>Total utilities</th>
+                    <th>Total paid</th>
                     <th>Mortgage left</th>
                     <th>Mortgage repaid</th>
                   </tr>
@@ -656,6 +661,15 @@ export default function Home() {
                       <td>{money(row.interestPaid)}</td>
                       <td>{money(row.totalPrincipalPaid)}</td>
                       <td>{money(row.totalInterestPaid)}</td>
+                      <td>{money(results.monthlyTaxes * 12 * row.year)}</td>
+                      <td>{money(results.monthlyUtilities * 12 * row.year)}</td>
+                      <td>
+                        {money(
+                          row.totalPrincipalPaid +
+                            row.totalInterestPaid +
+                            (results.monthlyTaxes + results.monthlyUtilities) * 12 * row.year,
+                        )}
+                      </td>
                       <td>{money(row.endingBalance)}</td>
                       <td>{percent(row.paidOffPercent)}</td>
                     </tr>
@@ -789,11 +803,30 @@ export default function Home() {
 
               <TimelineSlider selectedMonth={results.selectedMonth} onChange={setSelectedMonth} />
 
+              <label className="comparison-option">
+                <input
+                  checked={includeOwnerExtras}
+                  onChange={(event) => setIncludeOwnerExtras(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>
+                  <strong>Include taxes and utilities in buying total</strong>
+                  <small>
+                    These homeowner costs are not included in rent. Uncheck to compare only
+                    mortgage principal and interest with rent.
+                  </small>
+                </span>
+              </label>
+
               <div className="comparison-summary">
                 <div className="comparison-card buy-total">
-                  <span>Total mortgage payments</span>
-                  <strong>{money(principalVsInterestTotal)}</strong>
-                  <small>Principal + interest</small>
+                  <span>Total buying payments</span>
+                  <strong>{money(comparisonBuyingTotal)}</strong>
+                  <small>
+                    {includeOwnerExtras
+                      ? "Principal + interest + taxes + utilities"
+                      : "Principal + interest"}
+                  </small>
                 </div>
                 <div className="comparison-card rent-total">
                   <span>Total rent payments</span>
@@ -824,13 +857,15 @@ export default function Home() {
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
                     <div>
-                      <strong>Buying · mortgage payments</strong>
-                      <small>Principal builds equity; interest is the borrowing cost.</small>
+                      <strong>Buying · total payments</strong>
+                      <small>
+                        Principal builds equity; all other included payments are housing costs.
+                      </small>
                     </div>
-                    <strong>{money(principalVsInterestTotal)}</strong>
+                    <strong>{money(comparisonBuyingTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(principalVsInterestTotal)} in mortgage payments: ${money(results.selectedPrincipalPaid)} principal equity and ${money(results.selectedInterestPaid)} interest`}
+                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, and ${money(selectedOwnerExtras)} in taxes and utilities` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
@@ -844,10 +879,23 @@ export default function Home() {
                       style={{ width: `${comparisonInterestWidth}%` }}
                       title={`${money(results.selectedInterestPaid)} interest`}
                     />
+                    {includeOwnerExtras ? (
+                      <span
+                        className="owner-extras-fill"
+                        style={{ width: `${comparisonOwnerExtrasWidth}%` }}
+                        title={`${money(selectedOwnerExtras)} taxes and utilities`}
+                      />
+                    ) : null}
                   </div>
                   <div className="comparison-legend">
                     <span><i className="legend principal" />Principal / equity {money(results.selectedPrincipalPaid)}</span>
                     <span><i className="legend interest" />Interest {money(results.selectedInterestPaid)}</span>
+                    {includeOwnerExtras ? (
+                      <span>
+                        <i className="legend owner-extras" />
+                        Taxes + utilities {money(selectedOwnerExtras)}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 
@@ -875,17 +923,14 @@ export default function Home() {
                     <span><i className="legend empty-legend" />Home equity $0</span>
                   </div>
                 </div>
-
-                <div className="comparison-difference">
-                  <span>{lowerPaymentOption}</span>
-                  <strong>{money(totalPaymentDifference)} difference</strong>
-                </div>
               </div>
 
               <p className="comparison-note">
-                This comparison follows your requested scope: buying is mortgage principal plus
-                interest, while renting is rent paid. It excludes the down payment, municipal
-                taxes, utilities, maintenance, insurance, closing costs, and home-price changes.
+                Buying includes mortgage principal and interest
+                {includeOwnerExtras ? ", municipal taxes, and utilities" : ""}; renting includes
+                rent paid. This comparison excludes the down payment, maintenance, insurance,
+                closing costs, and home-price changes
+                {includeOwnerExtras ? "." : ", as well as municipal taxes and utilities."}
               </p>
             </section>
           </div>
@@ -896,8 +941,9 @@ export default function Home() {
                 <p className="eyebrow">Buy vs. rent schedule</p>
                 <h2>Year 1 to year 25</h2>
                 <p>
-                  Compare cumulative mortgage payments with cumulative rent. Principal is shown
-                  separately because it reduces the mortgage and builds homeowner equity.
+                  Compare cumulative buying payments with cumulative rent. Principal is shown
+                  separately because it reduces the mortgage and builds homeowner equity. Taxes
+                  and utilities follow the checkbox above.
                 </p>
               </div>
             </div>
@@ -907,9 +953,10 @@ export default function Home() {
                 <thead>
                   <tr>
                     <th>Year</th>
-                    <th>Mortgage paid</th>
+                    <th>Buying paid</th>
                     <th>Principal / equity</th>
                     <th>Interest cost</th>
+                    <th>Taxes + utilities</th>
                     <th>Rent paid</th>
                     <th>Renter home equity</th>
                   </tr>
@@ -918,9 +965,26 @@ export default function Home() {
                   {results.years.map((row, index) => (
                     <tr key={row.year}>
                       <td><strong>{row.year}</strong></td>
-                      <td>{money(row.totalPrincipalPaid + row.totalInterestPaid)}</td>
+                      <td>
+                        {money(
+                          row.totalPrincipalPaid +
+                            row.totalInterestPaid +
+                            (includeOwnerExtras
+                              ? (results.monthlyTaxes + results.monthlyUtilities) *
+                                12 *
+                                row.year
+                              : 0),
+                        )}
+                      </td>
                       <td>{money(row.totalPrincipalPaid)}</td>
                       <td>{money(row.totalInterestPaid)}</td>
+                      <td>
+                        {money(
+                          includeOwnerExtras
+                            ? (results.monthlyTaxes + results.monthlyUtilities) * 12 * row.year
+                            : 0,
+                        )}
+                      </td>
                       <td>{money(results.rentYears[index]?.totalRent ?? 0)}</td>
                       <td>$0</td>
                     </tr>

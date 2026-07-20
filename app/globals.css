@@ -715,6 +715,46 @@ footer {
   background: var(--interest);
 }
 
+.comparison-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--blue-soft);
+  cursor: pointer;
+}
+
+.comparison-option input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--blue);
+}
+
+.comparison-option span,
+.comparison-option strong,
+.comparison-option small {
+  display: block;
+}
+
+.comparison-option span {
+  flex: 1;
+}
+
+.comparison-option strong {
+  font-size: 0.76rem;
+}
+
+.comparison-option small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
 .comparison-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -828,6 +868,10 @@ footer {
   background: var(--interest);
 }
 
+.owner-extras-fill {
+  background: var(--tax);
+}
+
 .rent-fill {
   background: var(--rent);
 }
@@ -851,26 +895,13 @@ footer {
   background: var(--rent);
 }
 
+.legend.owner-extras {
+  background: var(--tax);
+}
+
 .legend.empty-legend {
   border: 1px solid var(--line-strong);
   background: white;
-}
-
-.comparison-difference {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-top: 22px;
-  padding: 13px 14px;
-  border: 1px solid var(--line);
-  background: #fef3c7;
-  font-size: 0.75rem;
-}
-
-.comparison-difference span {
-  color: var(--muted);
-  font-weight: 700;
 }
 
 .comparison-note {
@@ -978,8 +1009,12 @@ tbody tr:hover {
   min-width: 650px;
 }
 
+.buying-table {
+  min-width: 1180px;
+}
+
 .comparison-table {
-  min-width: 820px;
+  min-width: 940px;
 }
 
 footer {
@@ -1083,8 +1118,7 @@ footer {
     grid-row: auto;
   }
 
-  .comparison-bar-label,
-  .comparison-difference {
+  .comparison-bar-label {
     align-items: flex-start;
     flex-direction: column;
   }
