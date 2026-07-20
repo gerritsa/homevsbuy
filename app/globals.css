@@ -1217,7 +1217,8 @@ th {
   text-transform: uppercase;
 }
 
-.buying-table th {
+.buying-table th,
+.comparison-table th {
   white-space: normal;
   vertical-align: bottom;
 }
@@ -1260,11 +1261,11 @@ tbody tr:hover {
 }
 
 .comparison-table {
-  min-width: 1100px;
+  min-width: 980px;
 }
 
 .comparison-table.with-advanced-costs {
-  min-width: 1320px;
+  min-width: 1120px;
 }
 
 .excluded-cell {

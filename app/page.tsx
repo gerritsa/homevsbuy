@@ -374,6 +374,8 @@ export default function Home() {
     principalVsInterestTotal +
     (includeOwnerExtras ? selectedOwnerExtras : 0) +
     selectedAdvancedBuyingCosts
+  const comparisonBuyingGraphTotal =
+    comparisonBuyingTotal + (includeDownPayment ? results.downPayment : 0)
   const comparisonHomeEquity =
     results.selectedPrincipalPaid + (includeDownPayment ? results.downPayment : 0)
   const comparisonBuyingCost =
@@ -402,8 +404,7 @@ export default function Home() {
   ].join(" + ")
   const comparisonMax = Math.max(
     1,
-    comparisonBuyingTotal,
-    includeDownPayment ? results.downPayment : 0,
+    comparisonBuyingGraphTotal,
     results.selectedRentCash,
   )
   const comparisonPrincipalWidth = (results.selectedPrincipalPaid / comparisonMax) * 100
@@ -1073,7 +1074,10 @@ export default function Home() {
                     <div className="comparison-metric cost-metric">
                       <span>Non-equity housing cost</span>
                       <strong>{money(comparisonBuyingCost)}</strong>
-                      <small>{buyingCostBreakdown}</small>
+                      <small>
+                        {buyingCostBreakdown}. Maintenance, homeowner insurance, and closing costs
+                        are included when entered.
+                      </small>
                     </div>
                   </div>
                   {includeDownPayment ? (
@@ -1131,7 +1135,10 @@ export default function Home() {
                     <p className="card-kicker">Same-timescale comparison</p>
                     <h3>Total paid and equity built</h3>
                   </div>
-                  <span>Through month {results.selectedMonth}</span>
+                  <span>
+                    Through month {results.selectedMonth} - Year {selectedYear}, month{" "}
+                    {selectedMonthInYear}
+                  </span>
                 </div>
 
                 <div className="comparison-bar-group">
@@ -1142,14 +1149,14 @@ export default function Home() {
                         Principal{includeDownPayment ? " and the down payment build" : " builds"}{" "}
                         equity.{" "}
                         {includeDownPayment
-                          ? "The down payment is shown separately from this bar."
+                          ? "The down payment is included in this bar."
                           : "The down payment is excluded."}
                       </small>
                     </div>
-                    <strong>{money(comparisonBuyingTotal)}</strong>
+                    <strong>{money(comparisonBuyingGraphTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
+                    aria-label={`${money(comparisonBuyingGraphTotal)} in buying payments: ${money(results.selectedPrincipalPaid)} principal equity${includeDownPayment ? `, ${money(results.downPayment)} down payment` : ""}, ${money(results.selectedInterestPaid)} interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
@@ -1158,6 +1165,13 @@ export default function Home() {
                       style={{ width: `${comparisonPrincipalWidth}%` }}
                       title={`${money(results.selectedPrincipalPaid)} principal`}
                     />
+                    {includeDownPayment ? (
+                      <span
+                        className="down-payment-fill"
+                        style={{ width: `${comparisonDownPaymentWidth}%` }}
+                        title={`${money(results.downPayment)} down payment`}
+                      />
+                    ) : null}
                     <span
                       className="interest-fill"
                       style={{ width: `${comparisonInterestWidth}%` }}
@@ -1194,6 +1208,12 @@ export default function Home() {
                   </div>
                   <div className="comparison-legend">
                     <span><i className="legend principal" />Principal / equity {money(results.selectedPrincipalPaid)}</span>
+                    {includeDownPayment ? (
+                      <span>
+                        <i className="legend down-payment" />
+                        Down payment {money(results.downPayment)}
+                      </span>
+                    ) : null}
                     <span><i className="legend interest" />Interest {money(results.selectedInterestPaid)}</span>
                     {includeOwnerExtras ? (
                       <span>
@@ -1219,37 +1239,14 @@ export default function Home() {
                         Closing costs {money(results.closingCosts)}
                       </span>
                     ) : null}
+                    {!hasAdvancedBuyingCosts ? (
+                      <span>
+                        <i className="legend empty-legend" />
+                        Advanced costs appear here when entered
+                      </span>
+                    ) : null}
                   </div>
                 </div>
-
-                {includeDownPayment ? (
-                  <div className="comparison-bar-group">
-                    <div className="comparison-bar-label">
-                      <div>
-                        <strong>Down payment · up-front equity</strong>
-                        <small>Shown separately from ongoing buying payments.</small>
-                      </div>
-                      <strong>{money(results.downPayment)}</strong>
-                    </div>
-                    <div
-                      aria-label={`${money(results.downPayment)} down payment included in homeowner equity`}
-                      className="comparison-track"
-                      role="img"
-                    >
-                      <span
-                        className="down-payment-fill"
-                        style={{ width: `${comparisonDownPaymentWidth}%` }}
-                        title={`${money(results.downPayment)} down payment equity`}
-                      />
-                    </div>
-                    <div className="comparison-legend">
-                      <span>
-                        <i className="legend down-payment" />
-                        Down payment / equity {money(results.downPayment)}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
 
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
@@ -1335,19 +1332,34 @@ export default function Home() {
                 <thead>
                   <tr>
                     <th>Year</th>
-                    <th>Buying cash paid</th>
-                    <th>Mortgage equity built</th>
-                    {includeDownPayment ? <th>Down payment</th> : null}
-                    <th>Principal paid</th>
-                    <th>Non-equity buying cost</th>
-                    <th>Interest cost</th>
-                    <th>Taxes + utilities</th>
-                    {results.monthlyMaintenance > 0 ? <th>Maintenance</th> : null}
-                    {results.monthlyHomeInsurance > 0 ? <th>Homeowner insurance</th> : null}
-                    {results.closingCosts > 0 ? <th>Closing costs</th> : null}
-                    <th>Rent cash paid</th>
-                    {hasAdvancedRentingCosts ? <th>Rental utilities</th> : null}
-                    <th>Rent home equity</th>
+                    <th><span className="stacked-heading"><span>Buying</span><span>cash paid</span></span></th>
+                    <th><span className="stacked-heading"><span>Mortgage</span><span>equity built</span></span></th>
+                    {includeDownPayment ? (
+                      <th><span className="stacked-heading"><span>Down</span><span>payment</span></span></th>
+                    ) : null}
+                    <th><span className="stacked-heading"><span>Principal</span><span>paid</span></span></th>
+                    <th>
+                      <span className="stacked-heading">
+                        <span>Non-equity</span>
+                        <span>buying cost</span>
+                      </span>
+                    </th>
+                    <th><span className="stacked-heading"><span>Interest</span><span>cost</span></span></th>
+                    <th><span className="stacked-heading"><span>Taxes +</span><span>utilities</span></span></th>
+                    {results.monthlyMaintenance > 0 ? (
+                      <th><span className="stacked-heading"><span>Main-</span><span>tenance</span></span></th>
+                    ) : null}
+                    {results.monthlyHomeInsurance > 0 ? (
+                      <th><span className="stacked-heading"><span>Homeowner</span><span>insurance</span></span></th>
+                    ) : null}
+                    {results.closingCosts > 0 ? (
+                      <th><span className="stacked-heading"><span>Closing</span><span>costs</span></span></th>
+                    ) : null}
+                    <th><span className="stacked-heading"><span>Rent</span><span>cash paid</span></span></th>
+                    {hasAdvancedRentingCosts ? (
+                      <th><span className="stacked-heading"><span>Rental</span><span>utilities</span></span></th>
+                    ) : null}
+                    <th><span className="stacked-heading"><span>Rent home</span><span>equity</span></span></th>
                   </tr>
                 </thead>
                 <tbody>
