@@ -54,8 +54,83 @@ export type MortgageAmounts = {
   cmhcWarning: string | null
 }
 
+export type ExitScenarioInputs = {
+  purchasePrice: number
+  salePrice: number
+  sellingCostPercent: number
+  fixedSellingCosts: number
+  mortgagePenalty: number
+  mortgageBalance: number
+  downPayment: number
+  principalPaid: number
+  interestPaid: number
+  recurringOwnershipCosts: number
+  buyingClosingCosts: number
+  monthsOwned: number
+  rentCash: number
+}
+
+export type ExitScenarioResult = {
+  percentageSellingCosts: number
+  totalSellingCosts: number
+  grossHomeEquity: number
+  cashAfterSale: number
+  homeValueChange: number
+  totalCashPaid: number
+  netOwnershipResult: number
+  netOwnershipCost: number
+  netCostPerMonth: number
+  buyingAdvantageVsRent: number
+}
+
 export const LONG_TERM_YEARS = 25
 export const LONG_TERM_MONTHS = LONG_TERM_YEARS * 12
+
+export function calculateExitScenario(inputs: ExitScenarioInputs): ExitScenarioResult {
+  const purchasePrice = Math.max(0, inputs.purchasePrice)
+  const salePrice = Math.max(0, inputs.salePrice)
+  const sellingCostPercent = Math.max(0, inputs.sellingCostPercent)
+  const fixedSellingCosts = Math.max(0, inputs.fixedSellingCosts)
+  const mortgagePenalty = Math.max(0, inputs.mortgagePenalty)
+  const mortgageBalance = Math.max(0, inputs.mortgageBalance)
+  const downPayment = Math.max(0, inputs.downPayment)
+  const principalPaid = Math.max(0, inputs.principalPaid)
+  const interestPaid = Math.max(0, inputs.interestPaid)
+  const recurringOwnershipCosts = Math.max(0, inputs.recurringOwnershipCosts)
+  const buyingClosingCosts = Math.max(0, inputs.buyingClosingCosts)
+  const monthsOwned = Math.max(1, Math.round(inputs.monthsOwned))
+  const rentCash = Math.max(0, inputs.rentCash)
+
+  const percentageSellingCosts = salePrice * (sellingCostPercent / 100)
+  const totalSellingCosts = percentageSellingCosts + fixedSellingCosts
+  const grossHomeEquity = salePrice - mortgageBalance
+  const cashAfterSale =
+    grossHomeEquity - totalSellingCosts - mortgagePenalty
+  const homeValueChange = salePrice - purchasePrice
+  const totalCashPaid =
+    downPayment +
+    principalPaid +
+    interestPaid +
+    recurringOwnershipCosts +
+    buyingClosingCosts
+  const netOwnershipResult = cashAfterSale - totalCashPaid
+  const netOwnershipCost = -netOwnershipResult
+  const netCostPerMonth = netOwnershipCost / monthsOwned
+  const buyingAdvantageVsRent = rentCash - netOwnershipCost
+
+  return {
+    percentageSellingCosts,
+    totalSellingCosts,
+    grossHomeEquity,
+    cashAfterSale,
+    homeValueChange,
+    totalCashPaid,
+    netOwnershipResult,
+    netOwnershipCost,
+    netCostPerMonth,
+    buyingAdvantageVsRent,
+  }
+}
 
 export function minimumDownPaymentFor(purchasePrice: number) {
   const price = Math.max(0, purchasePrice)

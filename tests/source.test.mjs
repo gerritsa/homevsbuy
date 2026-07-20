@@ -5,6 +5,7 @@ import test from "node:test"
 import {
   buildRentSchedule,
   buildSchedule,
+  calculateExitScenario,
   calculateMortgageAmounts,
   minimumDownPaymentFor,
 } from "../app/calculations.ts"
@@ -95,21 +96,55 @@ test("applies annual rent increases at rental-year boundaries", () => {
   assert.equal(schedule.months[12].totalRentalCash, 36_454)
 })
 
+test("calculates cash after sale and the full ownership result", () => {
+  const result = calculateExitScenario({
+    purchasePrice: 650_000,
+    salePrice: 725_000,
+    sellingCostPercent: 5,
+    fixedSellingCosts: 2_000,
+    mortgagePenalty: 4_000,
+    mortgageBalance: 438_000,
+    downPayment: 130_000,
+    principalPaid: 82_000,
+    interestPaid: 92_000,
+    recurringOwnershipCosts: 38_000,
+    buyingClosingCosts: 12_000,
+    monthsOwned: 60,
+    rentCash: 170_000,
+  })
+
+  assert.equal(result.percentageSellingCosts, 36_250)
+  assert.equal(result.totalSellingCosts, 38_250)
+  assert.equal(result.grossHomeEquity, 287_000)
+  assert.equal(result.cashAfterSale, 244_750)
+  assert.equal(result.homeValueChange, 75_000)
+  assert.equal(result.totalCashPaid, 354_000)
+  assert.equal(result.netOwnershipResult, -109_250)
+  assert.equal(result.netOwnershipCost, 109_250)
+  assert.ok(Math.abs(result.netCostPerMonth - 1_820.833333) < 0.000001)
+  assert.equal(result.buyingAdvantageVsRent, 60_750)
+})
+
 test("ships clear cash-flow comparison semantics and visible optional costs", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ])
 
-  assert.match(page, /Simple housing cash-flow calculator/)
+  assert.match(page, /Housing cash-flow calculator/)
+  assert.doesNotMatch(page, /Use the Buying tab for the mortgage and ownership costs/)
+  assert.doesNotMatch(page, /Common ownership costs/)
+  assert.doesNotMatch(page, /Advanced mortgage scenarios/)
   assert.match(page, /Estimated CMHC premium/)
   assert.match(page, /Total mortgage/)
   assert.match(page, /Estimated home equity/)
   assert.match(page, /Home price minus mortgage balance/)
-  assert.match(page, /Buying · down payment/)
-  assert.match(page, /separate flow above/)
+  assert.match(page, /Buying · upfront at purchase/)
+  assert.match(page, /cash needed upfront/)
   assert.match(page, /contributes to equity/)
-  assert.match(page, /included in estimated home equity/)
+  assert.match(page, /Closing costs are upfront non-equity\s+costs/)
+  assert.match(page, /Up-front cash · contributes to equity/)
+  assert.doesNotMatch(page, /Upfront cash shown separately above/)
   assert.doesNotMatch(page, /Include down payment in buying cash paid/)
   assert.doesNotMatch(page, /includeDownPaymentInComparison/)
   assert.match(page, /Rent cash paid includes rental\s+utilities when entered/)
@@ -117,13 +152,13 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(page, /table-group-buying/)
   assert.match(page, /table-group-renting/)
   assert.match(page, /Mortgage interest/)
-  assert.match(page, /Costs that do not build equity/)
+  assert.match(page, /Costs not recovered as equity/)
   assert.match(page, /The Taxes \+ utilities column adds maintenance and\s+homeowner insurance only when entered/)
   assert.match(page, /\+ maintenance/)
   assert.match(page, /\+ insurance/)
   assert.doesNotMatch(page, /table-maintenance/)
   assert.doesNotMatch(page, /table-home-insurance/)
-  assert.match(page, /Municipal taxes\/month/)
+  assert.match(page, /Property taxes\/month/)
   assert.match(page, /Cumulative cost month/)
   assert.match(page, /function InfoButton/)
   assert.match(page, /Monthly costs include utilities, maintenance, and homeowner insurance/)
@@ -141,6 +176,20 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(page, /<details className="advanced-panel" open>/)
   assert.match(page, /Mortgage renewal rates/)
   assert.match(page, /Annual rent increase/)
+  assert.match(page, /Selling · Exit/)
+  assert.match(page, /Cash after sale/)
+  assert.match(page, /Net ownership result/)
+  assert.match(page, /What changed your result/)
+  assert.match(page, /How your equity was built/)
+  assert.match(page, /Original down payment/)
+  assert.match(page, /Gross home equity at sale/)
+  assert.doesNotMatch(page, /Price sensitivity/)
+  assert.doesNotMatch(page, /If the sale price is 10% lower or higher/)
+  assert.match(page, /Mortgage prepayment penalty/)
+  assert.match(page, /Estimated housing cash-flow difference:/)
+  assert.doesNotMatch(page, /Buying is ahead by/)
+  assert.doesNotMatch(page, /Total cash paid/)
+  assert.match(page, /calculateExitScenario/)
   assert.match(page, /entered five-year renewal rates/)
   assert.match(page, /annual rent increases/)
   assert.match(page, /showCmhcDetails = results\.downPaymentPercent < 20/)
@@ -157,6 +206,9 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(css, /\.comparison-table-groups/)
   assert.match(css, /color-mix\(in srgb, var\(--rent\) 12%, white\)/)
   assert.match(css, /\.comparison-table th\.table-down-payment/)
+  assert.match(css, /\.exit-waterfall/)
+  assert.match(css, /\.exit-rent-comparison/)
+  assert.doesNotMatch(css, /\.exit-table/)
   assert.match(css, /overflow-wrap: anywhere/)
   assert.match(
     css,

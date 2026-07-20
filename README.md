@@ -11,6 +11,7 @@ A simplified Canadian home-buying and renting cash-flow calculator built with Ne
 - Principal, interest, mortgage balance, and equity breakdowns
 - Five-year mortgage renewal-rate scenarios with payment recalculation
 - Optional annual rent-increase projection
+- Selling and exit scenarios with equity composition, net sale proceeds, and lifetime ownership result
 
 ## Local development
 

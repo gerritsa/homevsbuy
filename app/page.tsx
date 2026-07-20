@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react"
 import {
   buildRentSchedule,
   buildSchedule,
+  calculateExitScenario,
   calculateMortgageAmounts,
   LONG_TERM_MONTHS,
 } from "./calculations"
@@ -23,6 +24,22 @@ type CalculatorInputs = {
   monthlyRentalUtilities: number
 }
 
+type ExitInputs = {
+  salePrice: number
+  sellingCostPercent: number
+  fixedSellingCosts: number
+  mortgagePenalty: number
+}
+
+type OptionalInputKey =
+  | "annualRentIncrease"
+  | "monthlyMaintenance"
+  | "monthlyHomeInsurance"
+  | "closingCosts"
+  | "monthlyRentalUtilities"
+
+type OptionalExitInputKey = "sellingCostPercent" | "fixedSellingCosts" | "mortgagePenalty"
+
 const initialInputs: CalculatorInputs = {
   purchasePrice: 650000,
   downPaymentPercent: 20,
@@ -36,6 +53,41 @@ const initialInputs: CalculatorInputs = {
   monthlyHomeInsurance: 0,
   closingCosts: 0,
   monthlyRentalUtilities: 0,
+}
+
+const initialExitInputs: ExitInputs = {
+  salePrice: 650000,
+  sellingCostPercent: 0,
+  fixedSellingCosts: 0,
+  mortgagePenalty: 0,
+}
+
+const optionalInputKeys: OptionalInputKey[] = [
+  "annualRentIncrease",
+  "monthlyMaintenance",
+  "monthlyHomeInsurance",
+  "closingCosts",
+  "monthlyRentalUtilities",
+]
+
+const optionalExitInputKeys: OptionalExitInputKey[] = [
+  "sellingCostPercent",
+  "fixedSellingCosts",
+  "mortgagePenalty",
+]
+
+const initialConfirmedInputZeros: Record<OptionalInputKey, boolean> = {
+  annualRentIncrease: false,
+  monthlyMaintenance: false,
+  monthlyHomeInsurance: false,
+  closingCosts: false,
+  monthlyRentalUtilities: false,
+}
+
+const initialConfirmedExitZeros: Record<OptionalExitInputKey, boolean> = {
+  sellingCostPercent: false,
+  fixedSellingCosts: false,
+  mortgagePenalty: false,
 }
 
 const currency = new Intl.NumberFormat("en-CA", {
@@ -52,15 +104,37 @@ const preciseCurrency = new Intl.NumberFormat("en-CA", {
 })
 
 function money(value: number) {
-  return currency.format(Number.isFinite(value) ? value : 0)
+  const safeValue = Number.isFinite(value) && !Object.is(value, -0) ? value : 0
+  return currency.format(safeValue)
 }
 
 function preciseMoney(value: number) {
-  return preciseCurrency.format(Number.isFinite(value) ? value : 0)
+  const safeValue = Number.isFinite(value) && !Object.is(value, -0) ? value : 0
+  return preciseCurrency.format(safeValue)
+}
+
+function deductionMoney(value: number) {
+  return value === 0 ? money(0) : `−${money(Math.abs(value))}`
+}
+
+function signedMoney(value: number) {
+  if (value === 0) {
+    return money(0)
+  }
+
+  return `${value > 0 ? "+" : "-"}${money(Math.abs(value))}`
 }
 
 function percent(value: number) {
   return `${(Number.isFinite(value) ? value : 0).toFixed(1)}%`
+}
+
+function isOptionalInputKey(key: keyof CalculatorInputs): key is OptionalInputKey {
+  return optionalInputKeys.includes(key as OptionalInputKey)
+}
+
+function isOptionalExitInputKey(key: keyof ExitInputs): key is OptionalExitInputKey {
+  return optionalExitInputKeys.includes(key as OptionalExitInputKey)
 }
 
 function InfoButton({ label }: { label: string }) {
@@ -134,7 +208,12 @@ function NumberField({
         {hint ? <InfoButton label={hint} /> : null}
       </div>
       <span className="input-shell">
-        {prefix ? <span className="input-affix">{prefix}</span> : null}
+        <span
+          aria-hidden={!prefix}
+          className={prefix ? "input-affix" : "input-affix input-affix-spacer"}
+        >
+          {prefix}
+        </span>
         <input
           id={id}
           inputMode="decimal"
@@ -195,22 +274,62 @@ function DetailRow({
 function TimelineSlider({
   selectedMonth,
   onChange,
+  mode = "timeline",
 }: {
   selectedMonth: number
   onChange: (month: number) => void
+  mode?: "timeline" | "sell"
 }) {
   const selectedYear = Math.ceil(selectedMonth / 12)
   const selectedMonthInYear = ((selectedMonth - 1) % 12) + 1
+  const isSellMode = mode === "sell"
+  const presets = [
+    { label: "After 1 year", month: 12 },
+    { label: "After 2 years", month: 24 },
+    { label: "After 3 years", month: 36 },
+    { label: "After 5 years", month: 60 },
+    { label: "After 10 years", month: 120 },
+  ]
+  const selectedPreset = presets.some((preset) => preset.month === selectedMonth)
+    ? String(selectedMonth)
+    : ""
 
   return (
     <article className="slider-card">
       <div className="slider-heading">
         <div>
-          <p className="card-kicker">Timeline slider</p>
+          <p className="card-kicker">{isSellMode ? "Sell after" : "Timeline slider"}</p>
           <h3>
-            Month {selectedMonth} <span>Year {selectedYear}, month {selectedMonthInYear}</span>
+            {isSellMode
+              ? `Year ${selectedYear}, month ${selectedMonthInYear}`
+              : `Month ${selectedMonth}`}{" "}
+            <span>
+              {isSellMode
+                ? `${selectedMonth} ${selectedMonth === 1 ? "month" : "months"} of ownership`
+                : `Year ${selectedYear}, month ${selectedMonthInYear}`}
+            </span>
           </h3>
         </div>
+        <label className="slider-preset">
+          <span>Jump to</span>
+          <select
+            aria-label="Jump to timeline preset"
+            onChange={(event) => {
+              const nextMonth = Number(event.target.value)
+              if (Number.isFinite(nextMonth) && nextMonth > 0) {
+                onChange(nextMonth)
+              }
+            }}
+            value={selectedPreset}
+          >
+            <option value="">Select preset</option>
+            {presets.map((preset) => (
+              <option key={preset.month} value={preset.month}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       <input
         aria-label="Select month in first 25 years"
@@ -236,7 +355,10 @@ function TimelineSlider({
 
 export default function Home() {
   const [inputs, setInputs] = useState(initialInputs)
-  const [activeTab, setActiveTab] = useState<"buy" | "rent" | "compare">("buy")
+  const [exitInputs, setExitInputs] = useState(initialExitInputs)
+  const [confirmedInputZeros, setConfirmedInputZeros] = useState(initialConfirmedInputZeros)
+  const [confirmedExitZeros, setConfirmedExitZeros] = useState(initialConfirmedExitZeros)
+  const [activeTab, setActiveTab] = useState<"buy" | "rent" | "compare" | "exit">("buy")
   const [selectedMonth, setSelectedMonth] = useState(1)
   const [includeOwnerExtras, setIncludeOwnerExtras] = useState(true)
   const [renewalRates, setRenewalRates] = useState([4.3, 4.3, 4.3, 4.3, 4.3])
@@ -316,11 +438,45 @@ export default function Home() {
   }, [inputs, renewalRates, selectedMonth])
 
   const updateInput = (key: keyof CalculatorInputs, value: number) => {
+    if (isOptionalInputKey(key)) {
+      setConfirmedInputZeros((current) => ({
+        ...current,
+        [key]: true,
+      }))
+    }
+
     setInputs((current) => ({
       ...current,
       [key]: Number.isFinite(value) ? value : 0,
     }))
   }
+
+  const updateExitInput = (key: keyof ExitInputs, value: number) => {
+    if (isOptionalExitInputKey(key)) {
+      setConfirmedExitZeros((current) => ({
+        ...current,
+        [key]: true,
+      }))
+    }
+
+    setExitInputs((current) => ({
+      ...current,
+      [key]: Number.isFinite(value) ? value : 0,
+    }))
+  }
+
+  const isInputAssumptionComplete = (key: OptionalInputKey) =>
+    inputs[key] !== 0 || confirmedInputZeros[key]
+  const isExitAssumptionComplete = (key: OptionalExitInputKey) =>
+    exitInputs[key] !== 0 || confirmedExitZeros[key]
+  const formatOptionalMoney = (value: number, isComplete: boolean) =>
+    value === 0 && !isComplete ? "Not entered" : money(value)
+  const formatOptionalPreciseMoney = (value: number, isComplete: boolean) =>
+    value === 0 && !isComplete ? "Not entered" : preciseMoney(value)
+  const formatOptionalPercent = (value: number, isComplete: boolean) =>
+    value === 0 && !isComplete ? "Not entered" : percent(value)
+  const formatOptionalDeductionMoney = (value: number, isComplete: boolean) =>
+    value === 0 && !isComplete ? "Not entered" : deductionMoney(value)
 
   const principalVsInterestTotal = results.selectedPrincipalPaid + results.selectedInterestPaid
   const selectedInterestPercent =
@@ -337,11 +493,12 @@ export default function Home() {
   const selectedAdvancedBuyingCosts =
     selectedMaintenancePaid + selectedHomeInsurancePaid + results.closingCosts
   const upfrontBuyingCosts = results.downPayment + results.closingCosts
-  const comparisonBuyingTotal =
+  const comparisonBuyingAfterPurchase =
     principalVsInterestTotal +
     (includeOwnerExtras ? selectedOwnerExtras : 0) +
-    selectedAdvancedBuyingCosts
-  const comparisonBuyingGraphTotal = comparisonBuyingTotal
+    selectedMaintenancePaid +
+    selectedHomeInsurancePaid
+  const comparisonBuyingGraphTotal = comparisonBuyingAfterPurchase
   const comparisonHomeEquity = Math.max(
     0,
     results.purchasePrice - results.balanceAtSelectedMonth,
@@ -356,18 +513,41 @@ export default function Home() {
     results.monthlyHomeInsurance > 0 ||
     results.closingCosts > 0
   const hasAdvancedRentingCosts = results.monthlyRentalUtilities > 0
+  const isMaintenanceComplete = isInputAssumptionComplete("monthlyMaintenance")
+  const isHomeInsuranceComplete = isInputAssumptionComplete("monthlyHomeInsurance")
+  const isClosingCostsComplete = isInputAssumptionComplete("closingCosts")
+  const isRentIncreaseComplete = isInputAssumptionComplete("annualRentIncrease")
+  const isRentalUtilitiesComplete = isInputAssumptionComplete("monthlyRentalUtilities")
+  const isSellingCostPercentComplete = isExitAssumptionComplete("sellingCostPercent")
+  const isFixedSellingCostsComplete = isExitAssumptionComplete("fixedSellingCosts")
+  const isMortgagePenaltyComplete = isExitAssumptionComplete("mortgagePenalty")
+  const buyingAssumptionsComplete =
+    isMaintenanceComplete && isHomeInsuranceComplete && isClosingCostsComplete
+  const rentingAssumptionsComplete = isRentIncreaseComplete && isRentalUtilitiesComplete
+  const comparisonAssumptionsComplete = buyingAssumptionsComplete && rentingAssumptionsComplete
+  const cashNeededUpfrontLabel = isClosingCostsComplete
+    ? money(upfrontBuyingCosts)
+    : `At least ${money(results.downPayment)}`
+  const optionalClosingCostsLabel = formatOptionalMoney(results.closingCosts, isClosingCostsComplete)
+  const optionalRentalUtilitiesLabel = formatOptionalPreciseMoney(
+    results.monthlyRentalUtilities,
+    isRentalUtilitiesComplete,
+  )
+  const optionalRentIncreaseLabel = formatOptionalPercent(
+    results.annualRentIncrease,
+    isRentIncreaseComplete,
+  )
   const showCmhcDetails = results.downPaymentPercent < 20
   const comparisonBuyingTableColumnCount =
     7 +
     (results.cmhcPremium > 0 ? 1 : 0) +
-    (results.closingCosts > 0 ? 1 : 0)
+    (results.closingCosts > 0 || !isClosingCostsComplete ? 1 : 0)
   const buyingTotalBreakdown = [
     "principal",
     "mortgage interest",
     ...(includeOwnerExtras ? ["taxes", "utilities"] : []),
     ...(results.monthlyMaintenance > 0 ? ["maintenance"] : []),
     ...(results.monthlyHomeInsurance > 0 ? ["insurance"] : []),
-    ...(results.closingCosts > 0 ? ["closing costs"] : []),
   ].join(" + ")
   const buyingCostBreakdown = [
     ...(results.cmhcPremium > 0 ? ["CMHC premium"] : []),
@@ -380,7 +560,7 @@ export default function Home() {
   const comparisonMax = Math.max(
     1,
     comparisonBuyingGraphTotal,
-    results.downPayment,
+    upfrontBuyingCosts,
     results.selectedRentCash,
   )
   const comparisonPrincipalWidth = (results.selectedPrincipalPaid / comparisonMax) * 100
@@ -407,8 +587,64 @@ export default function Home() {
       current.map((rate, rateIndex) => (rateIndex === index ? value : rate)),
     )
   }
+  const recurringOwnershipCostsThroughExit =
+    (results.monthlyTaxes +
+      results.monthlyUtilities +
+      results.monthlyMaintenance +
+      results.monthlyHomeInsurance) *
+    results.selectedMonth
+  const exitScenarioFor = (salePrice: number) =>
+    calculateExitScenario({
+      purchasePrice: results.purchasePrice,
+      salePrice,
+      sellingCostPercent: exitInputs.sellingCostPercent,
+      fixedSellingCosts: exitInputs.fixedSellingCosts,
+      mortgagePenalty: exitInputs.mortgagePenalty,
+      mortgageBalance: results.balanceAtSelectedMonth,
+      downPayment: results.downPayment,
+      principalPaid: results.selectedPrincipalPaid,
+      interestPaid: results.selectedInterestPaid,
+      recurringOwnershipCosts: recurringOwnershipCostsThroughExit,
+      buyingClosingCosts: results.closingCosts,
+      monthsOwned: results.selectedMonth,
+      rentCash: results.selectedRentCash,
+    })
+  const expectedExitScenario = exitScenarioFor(exitInputs.salePrice)
+  const effectiveMonthlyLabel =
+    expectedExitScenario.netOwnershipResult >= 0 ? "Net gain per month" : "Effective cost per month"
+  const effectiveMonthlyValue = Math.abs(expectedExitScenario.netCostPerMonth)
+  const housingCashFlowDifference = expectedExitScenario.buyingAdvantageVsRent
+  const percentageSellingCostsLabel = formatOptionalDeductionMoney(
+    expectedExitScenario.percentageSellingCosts,
+    isSellingCostPercentComplete,
+  )
+  const fixedSellingCostsLabel = formatOptionalDeductionMoney(
+    exitInputs.fixedSellingCosts,
+    isFixedSellingCostsComplete,
+  )
+  const mortgagePenaltyLabel = formatOptionalDeductionMoney(
+    exitInputs.mortgagePenalty,
+    isMortgagePenaltyComplete,
+  )
+  const sellingCostsLabel = formatOptionalDeductionMoney(
+    expectedExitScenario.totalSellingCosts,
+    isSellingCostPercentComplete && isFixedSellingCostsComplete,
+  )
+  const closingCostsDeductionLabel = formatOptionalDeductionMoney(
+    results.closingCosts,
+    isClosingCostsComplete,
+  )
+  const maintenanceAndInsuranceThroughExit =
+    (results.monthlyMaintenance + results.monthlyHomeInsurance) * results.selectedMonth
+  const maintenanceAndInsuranceExitLabel = formatOptionalDeductionMoney(
+    maintenanceAndInsuranceThroughExit,
+    isMaintenanceComplete && isHomeInsuranceComplete,
+  )
   const resetCalculator = () => {
     setInputs(initialInputs)
+    setExitInputs(initialExitInputs)
+    setConfirmedInputZeros(initialConfirmedInputZeros)
+    setConfirmedExitZeros(initialConfirmedExitZeros)
     setSelectedMonth(1)
     setIncludeOwnerExtras(true)
     setRenewalRates([4.3, 4.3, 4.3, 4.3, 4.3])
@@ -429,12 +665,7 @@ export default function Home() {
       <section className="hero" id="top">
         <div>
           <p className="eyebrow">Buy or rent worksheet</p>
-          <h1>Simple housing cash-flow calculator.</h1>
-          <p className="hero-copy">
-            Use the Buying tab for the mortgage and ownership costs. Switch to Renting for a
-            separate rent-growth projection, or compare simplified buying cash flow, rent, and
-            estimated home equity on the same 25-year timeline.
-          </p>
+          <h1>Housing cash-flow calculator.</h1>
         </div>
         <div className="hero-note">
           <span>All amounts in CAD</span>
@@ -476,6 +707,17 @@ export default function Home() {
         >
           Buy vs. Rent
         </button>
+        <button
+          aria-controls="exit-panel"
+          aria-selected={activeTab === "exit"}
+          className={activeTab === "exit" ? "tab active" : "tab"}
+          id="exit-tab"
+          onClick={() => setActiveTab("exit")}
+          role="tab"
+          type="button"
+        >
+          Selling · Exit
+        </button>
       </nav>
 
       {activeTab === "buy" ? (
@@ -495,7 +737,7 @@ export default function Home() {
                 <div className="field-grid">
                   <NumberField
                     id="purchase-price"
-                    label="Purchase cost"
+                    label="Home price"
                     onChange={(value) => updateInput("purchasePrice", value)}
                     prefix="$"
                     step={1000}
@@ -512,14 +754,14 @@ export default function Home() {
                   />
                   <NumberField
                     id="interest-rate"
-                    label="Mortgage interest rate"
+                    label="Interest rate for first 5-year term"
                     onChange={(value) => updateInput("interestRate", value)}
                     step={0.05}
                     suffix="%"
                     value={inputs.interestRate}
                   />
                   <label className="field" htmlFor="amortization">
-                    <span className="field-label">Amortization</span>
+                    <span className="field-label">Repayment period (amortization)</span>
                     <span className="input-shell select-shell">
                       <select
                         id="amortization"
@@ -538,7 +780,7 @@ export default function Home() {
                   </label>
                   <NumberField
                     id="annual-taxes"
-                    label="Municipal taxes"
+                    label="Property taxes"
                     onChange={(value) => updateInput("annualTaxes", value)}
                     prefix="$"
                     step={100}
@@ -601,16 +843,11 @@ export default function Home() {
                     </div>
                     <p>
                       Maintenance and insurance recur monthly. Closing costs are paid once and
-                      count as cash paid and a non-equity cost.
+                      count as cash needed upfront and a non-equity cost.
                     </p>
                     <div className="renewal-section">
                       <div>
                         <h3>Mortgage renewal rates</h3>
-                        <p>
-                          The initial rate applies in years 1–5. At each five-year renewal, the
-                          payment is recalculated from the remaining balance and amortization using
-                          the entered rate.
-                        </p>
                       </div>
                       <div className="field-grid renewal-rate-grid">
                         {renewalTerms.map((term) => (
@@ -648,12 +885,12 @@ export default function Home() {
                   <strong>{preciseMoney(results.selectedMonthMortgagePayment)}</strong>
                 </div>
                 <div className="monthly-card">
-                  <span>Municipal taxes/month</span>
+                  <span>Property taxes/month</span>
                   <strong>{preciseMoney(results.monthlyTaxes)}</strong>
                 </div>
                 <div className="monthly-card">
                   <span className="label-with-info">
-                    Monthly costs / month
+                    Home operating costs/month
                     <InfoButton label="Monthly costs include utilities, maintenance, and homeowner insurance when entered." />
                   </span>
                   <strong>{preciseMoney(monthlyOwnershipCosts)}</strong>
@@ -670,17 +907,17 @@ export default function Home() {
                   <DetailRow
                     amount={preciseMoney(results.selectedMonthPrincipal)}
                     label="Principal this month"
-                    note="Contributes to equity"
+                    note="Reduces what you owe"
                   />
                   <DetailRow
                     amount={preciseMoney(results.selectedMonthInterest)}
                     label="Mortgage interest this month"
                     note="Cost of mortgage borrowing"
                   />
-                  <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Municipal taxes" />
+                  <DetailRow amount={preciseMoney(results.monthlyTaxes)} label="Property taxes" />
                   <DetailRow
                     amount={preciseMoney(monthlyOwnershipCosts)}
-                    label="Monthly costs"
+                    label="Home operating costs"
                     note="Utilities + maintenance + homeowner insurance"
                   />
                   <DetailRow
@@ -700,13 +937,14 @@ export default function Home() {
                     note="Paid at purchase"
                   />
                   <DetailRow
-                    amount={money(results.closingCosts)}
+                    amount={optionalClosingCostsLabel}
                     label="Closing costs"
                   />
                   <DetailRow
-                    amount={money(upfrontBuyingCosts)}
+                    amount={cashNeededUpfrontLabel}
                     emphasis
-                    label="Total upfront costs"
+                    label="Cash needed upfront"
+                    note={!isClosingCostsComplete ? "Closing costs not entered" : undefined}
                   />
                 </div>
               </section>
@@ -954,7 +1192,7 @@ export default function Home() {
                 </div>
                 <div className="monthly-card">
                   <span>Rental utilities</span>
-                  <strong>{preciseMoney(results.monthlyRentalUtilities)}</strong>
+                  <strong>{optionalRentalUtilitiesLabel}</strong>
                 </div>
                 <div className="monthly-card total">
                   <span>Monthly renting total</span>
@@ -1022,7 +1260,7 @@ export default function Home() {
             </div>
           </section>
         </>
-      ) : (
+      ) : activeTab === "compare" ? (
         <>
           <div
             aria-labelledby="comparison-tab"
@@ -1034,7 +1272,7 @@ export default function Home() {
               <div className="sheet-title results-title">
                 <div>
                   <h2>Buy vs. rent through month {results.selectedMonth}</h2>
-                  <span>Simplified cash paid and estimated home equity on the same timeline</span>
+                  <span>Simplified cash paid after purchase and estimated home equity on the same timeline</span>
                 </div>
               </div>
 
@@ -1054,11 +1292,15 @@ export default function Home() {
                   <strong>{percent(results.selectedAnnualRate)}</strong>
                 </div>
                 <div>
+                  <span>Annual rent increase</span>
+                  <strong>{optionalRentIncreaseLabel}</strong>
+                </div>
+                <div>
                   <span>Rent + utilities in month {results.selectedMonth}</span>
                   <strong>
-                    {preciseMoney(
-                      results.selectedMonthlyRent + results.monthlyRentalUtilities,
-                    )}
+                    {isRentalUtilitiesComplete
+                      ? preciseMoney(results.selectedMonthlyRent + results.monthlyRentalUtilities)
+                      : "Not entered"}
                   </strong>
                 </div>
               </div>
@@ -1071,7 +1313,7 @@ export default function Home() {
                     type="checkbox"
                   />
                   <span>
-                    <strong>Include taxes and utilities in buying cash paid</strong>
+                    <strong>Include taxes and utilities in cash paid after purchase</strong>
                     <small>
                       Turn off to exclude these two ownership costs. Maintenance, homeowner
                       insurance, closing costs, and rental utilities remain included when entered.
@@ -1089,17 +1331,17 @@ export default function Home() {
                   </div>
                   <div className="comparison-metrics">
                     <div className="comparison-metric cash-metric">
-                      <span>Total cash paid</span>
-                      <strong>{money(comparisonBuyingTotal)}</strong>
+                      <span>Cash paid after purchase</span>
+                      <strong>{money(comparisonBuyingAfterPurchase)}</strong>
                       <small>{buyingTotalBreakdown}</small>
                     </div>
                     <div className="comparison-metric equity-metric">
-                      <span>Estimated home equity</span>
+                      <span>Equity if the home is still worth {money(results.purchasePrice)}</span>
                       <strong>{money(comparisonHomeEquity)}</strong>
-                      <small>Home price minus mortgage balance; home value held level</small>
+                      <small>Home price minus mortgage balance</small>
                     </div>
                     <div className="comparison-metric cost-metric">
-                      <span>Costs that do not build equity</span>
+                      <span>Costs not recovered as equity</span>
                       <strong>{money(comparisonBuyingCost)}</strong>
                       <small>
                         {buyingCostBreakdown}. These are payments that do not reduce the mortgage
@@ -1110,7 +1352,7 @@ export default function Home() {
                   <div className="comparison-upfront">
                     <span>
                       <strong>Down payment</strong>
-                      <small>Up-front cash · shown separately from total cash paid and contributes to equity</small>
+                      <small>Up-front cash · contributes to equity</small>
                     </span>
                     <strong>{money(results.downPayment)}</strong>
                   </div>
@@ -1123,13 +1365,13 @@ export default function Home() {
                       <strong>{money(results.cmhcPremium)}</strong>
                     </div>
                   ) : null}
-                  {results.closingCosts > 0 ? (
+                  {results.closingCosts > 0 || !isClosingCostsComplete ? (
                     <div className="comparison-upfront closing-upfront">
                       <span>
                         <strong>Closing costs</strong>
                         <small>One-time cash · included in non-equity cost</small>
                       </span>
-                      <strong>{money(results.closingCosts)}</strong>
+                      <strong>{optionalClosingCostsLabel}</strong>
                     </div>
                   ) : null}
                 </section>
@@ -1141,10 +1383,12 @@ export default function Home() {
                   </div>
                   <div className="comparison-metrics">
                     <div className="comparison-metric cash-metric">
-                      <span>Total cash paid</span>
+                      <span>Renting cash paid</span>
                       <strong>{money(results.selectedRentCash)}</strong>
                       <small>
-                        {results.monthlyRentalUtilities > 0
+                        {!isRentalUtilitiesComplete
+                          ? "Rental utilities not entered"
+                          : results.monthlyRentalUtilities > 0
                           ? "Rent + rental utilities"
                           : "Flat rent paid to date"}
                       </small>
@@ -1155,7 +1399,7 @@ export default function Home() {
                       <small>Rent does not reduce a mortgage</small>
                     </div>
                     <div className="comparison-metric cost-metric">
-                      <span>Costs that do not build equity</span>
+                      <span>Costs not recovered as equity</span>
                       <strong>{money(results.selectedRentCash)}</strong>
                       <small>All entered renting cash is a housing cost and does not build home equity</small>
                     </div>
@@ -1167,7 +1411,7 @@ export default function Home() {
                 <div className="graph-heading">
                   <div>
                     <p className="card-kicker">Same-timescale comparison</p>
-                    <h3>Total cash paid and estimated equity</h3>
+                    <h3>Cash paid after purchase and estimated equity</h3>
                   </div>
                   <span>
                     Through month {results.selectedMonth} - Year {selectedYear}, month{" "}
@@ -1178,16 +1422,16 @@ export default function Home() {
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
                     <div>
-                      <strong>Buying · down payment</strong>
+                      <strong>Buying · upfront at purchase</strong>
                       <small>
-                        Separate up-front cash flow above, excluded from buying cash paid, and
-                        included in estimated home equity.
+                        Down payment contributes to equity. Closing costs are upfront non-equity
+                        costs.
                       </small>
                     </div>
-                    <strong>{money(results.downPayment)}</strong>
+                    <strong>{cashNeededUpfrontLabel}</strong>
                   </div>
                   <div
-                    aria-label={`${money(results.downPayment)} down payment shown as a separate buying cash flow that contributes to home equity`}
+                    aria-label={`${cashNeededUpfrontLabel} in buying upfront cash at purchase`}
                     className="comparison-track"
                     role="img"
                   >
@@ -1196,11 +1440,22 @@ export default function Home() {
                       style={{ width: `${comparisonSeparateDownPaymentWidth}%` }}
                       title={`${money(results.downPayment)} separate down payment`}
                     />
+                    {results.closingCosts > 0 ? (
+                      <span
+                        className="closing-costs-fill"
+                        style={{ width: `${comparisonClosingCostsWidth}%` }}
+                        title={`${money(results.closingCosts)} closing costs`}
+                      />
+                    ) : null}
                   </div>
                   <div className="comparison-legend">
                     <span>
                       <i className="legend down-payment" />
                       Down payment {money(results.downPayment)}
+                    </span>
+                    <span>
+                      <i className="legend closing-costs" />
+                      Closing costs {optionalClosingCostsLabel}
                     </span>
                   </div>
                 </div>
@@ -1208,16 +1463,15 @@ export default function Home() {
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
                     <div>
-                      <strong>Buying · cash paid</strong>
+                      <strong>Buying · cash paid after purchase</strong>
                       <small>
-                        Principal repayment contributes to home equity. The down payment is shown
-                        as a separate flow above.
+                        Principal repayment reduces what you owe.
                       </small>
                     </div>
                     <strong>{money(comparisonBuyingGraphTotal)}</strong>
                   </div>
                   <div
-                    aria-label={`${money(comparisonBuyingGraphTotal)} in buying cash paid: ${money(results.selectedPrincipalPaid)} mortgage principal, ${money(results.selectedInterestPaid)} mortgage interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}${results.closingCosts > 0 ? `, and ${money(results.closingCosts)} in closing costs` : ""}`}
+                    aria-label={`${money(comparisonBuyingGraphTotal)} in buying cash paid after purchase: ${money(results.selectedPrincipalPaid)} mortgage principal, ${money(results.selectedInterestPaid)} mortgage interest${includeOwnerExtras ? `, ${money(selectedOwnerExtras)} in taxes and utilities` : ""}${selectedMaintenancePaid > 0 ? `, ${money(selectedMaintenancePaid)} in maintenance` : ""}${selectedHomeInsurancePaid > 0 ? `, ${money(selectedHomeInsurancePaid)} in homeowner insurance` : ""}`}
                     className="comparison-track"
                     role="img"
                   >
@@ -1252,20 +1506,9 @@ export default function Home() {
                         title={`${money(selectedHomeInsurancePaid)} homeowner insurance`}
                       />
                     ) : null}
-                    {results.closingCosts > 0 ? (
-                      <span
-                        className="closing-costs-fill"
-                        style={{ width: `${comparisonClosingCostsWidth}%` }}
-                        title={`${money(results.closingCosts)} closing costs`}
-                      />
-                    ) : null}
                   </div>
                   <div className="comparison-legend">
                     <span><i className="legend principal" />Mortgage principal {money(results.selectedPrincipalPaid)}</span>
-                    <span>
-                      <i className="legend empty-legend" />
-                      Down payment shown separately above
-                    </span>
                     <span><i className="legend interest" />Mortgage interest {money(results.selectedInterestPaid)}</span>
                     {includeOwnerExtras ? (
                       <span>
@@ -1285,16 +1528,10 @@ export default function Home() {
                         Homeowner insurance {money(selectedHomeInsurancePaid)}
                       </span>
                     ) : null}
-                    {results.closingCosts > 0 ? (
-                      <span>
-                        <i className="legend closing-costs" />
-                        Closing costs {money(results.closingCosts)}
-                      </span>
-                    ) : null}
                     {!hasAdvancedBuyingCosts ? (
                       <span>
                         <i className="legend empty-legend" />
-                        Advanced costs appear here when entered
+                        Other costs appear here when entered
                       </span>
                     ) : null}
                   </div>
@@ -1340,15 +1577,15 @@ export default function Home() {
               </div>
 
               <p className="comparison-note">
-                Buying cash paid includes mortgage payments, enabled ownership costs, and entered
-                closing costs. The down payment is shown as a separate up-front flow and contributes
-                to estimated home equity.{" "}
-                Estimated home equity is the entered home price
+                Buying cash paid after purchase includes mortgage payments and enabled ownership
+                costs. Cash needed upfront includes the down payment and entered closing costs.
+                The down payment contributes to estimated home equity.{" "}
+                Equity if the home is still worth {money(results.purchasePrice)} is the entered home price
                 minus the remaining mortgage balance
                 {results.cmhcPremium > 0
                   ? ", so the financed CMHC premium reduces equity."
                   : "."}
-                Buying costs that do not build equity are
+                Buying costs not recovered as equity are
                 {results.cmhcPremium > 0 ? " the estimated CMHC premium plus" : ""} mortgage interest
                 {includeOwnerExtras ? " plus municipal taxes and utilities" : ""}
                 {selectedMaintenancePaid > 0 ? " plus entered maintenance" : ""}
@@ -1356,8 +1593,8 @@ export default function Home() {
                 {results.closingCosts > 0 ? " plus entered closing costs" : ""};
                 renting&apos;s cash paid includes rent
                 {results.monthlyRentalUtilities > 0 ? " and entered rental utilities" : ""} and is
-                also its included housing cost. Changes in home value and any costs left at $0
-                are not included.
+                also its included housing cost.
+                {!comparisonAssumptionsComplete ? " Some optional assumptions have not been entered or confirmed as zero." : ""}
                 {!includeOwnerExtras ? " Municipal taxes and utilities are excluded." : ""}
               </p>
             </section>
@@ -1400,7 +1637,7 @@ export default function Home() {
                   <tr>
                     <th>Year</th>
                     <th className="table-down-payment"><span className="stacked-heading"><span>Down</span><span>payment</span></span></th>
-                    <th className="table-buying-cash"><span className="stacked-heading"><span>Buying</span><span>cash paid</span></span></th>
+                    <th className="table-buying-cash"><span className="stacked-heading"><span>Cash paid</span><span>after purchase</span></span></th>
                     <th className="table-equity"><span className="stacked-heading"><span>Estimated</span><span>home equity</span></span></th>
                     {results.cmhcPremium > 0 ? (
                       <th className="table-cmhc"><span className="stacked-heading"><span>CMHC</span><span>premium</span></span></th>
@@ -1420,7 +1657,7 @@ export default function Home() {
                         {results.monthlyHomeInsurance > 0 ? <span>+ insurance</span> : null}
                       </span>
                     </th>
-                    {results.closingCosts > 0 ? (
+                    {results.closingCosts > 0 || !isClosingCostsComplete ? (
                       <th className="table-closing"><span className="stacked-heading"><span>Closing</span><span>costs</span></span></th>
                     ) : null}
                     <th className="table-rent"><span className="stacked-heading"><span>Rent</span><span>cash paid</span></span></th>
@@ -1447,8 +1684,7 @@ export default function Home() {
                         {money(
                           row.totalPrincipalPaid +
                             row.totalInterestPaid +
-                            yearlyOwnershipCosts +
-                            results.closingCosts,
+                            yearlyOwnershipCosts,
                         )}
                       </td>
                       <td className="table-equity">
@@ -1463,7 +1699,7 @@ export default function Home() {
                           results.cmhcPremium +
                             row.totalInterestPaid +
                             yearlyOwnershipCosts +
-                            results.closingCosts,
+                            (isClosingCostsComplete ? results.closingCosts : 0),
                         )}
                       </td>
                       <td className="table-interest">{money(row.totalInterestPaid)}</td>
@@ -1476,8 +1712,8 @@ export default function Home() {
                       >
                         {yearlyOwnershipCosts > 0 ? money(yearlyOwnershipCosts) : "Excluded"}
                       </td>
-                      {results.closingCosts > 0 ? (
-                        <td className="table-closing">{money(results.closingCosts)}</td>
+                      {results.closingCosts > 0 || !isClosingCostsComplete ? (
+                        <td className="table-closing">{optionalClosingCostsLabel}</td>
                       ) : null}
                       <td className="table-rent">
                         {money(results.rentYears[index]?.totalRentalCash ?? 0)}
@@ -1491,6 +1727,310 @@ export default function Home() {
             </div>
           </section>
         </>
+      ) : (
+        <div
+          aria-labelledby="exit-tab"
+          className="workbook exit-workbook"
+          id="exit-panel"
+          role="tabpanel"
+        >
+          <section className="input-book" aria-label="Selling and exit inputs">
+            <div className="tab-panel">
+              <div className="sheet-title">
+                <h2>Exit assumptions</h2>
+                <span>Expected sale</span>
+              </div>
+
+              <div className="field-grid single exit-fields">
+                <NumberField
+                  id="exit-sale-price"
+                  label="Expected sale price"
+                  onChange={(value) => updateExitInput("salePrice", value)}
+                  prefix="$"
+                  step={1000}
+                  value={exitInputs.salePrice}
+                />
+                <NumberField
+                  id="exit-selling-cost-percent"
+                  label="Agent and percentage-based selling costs"
+                  hint="Enter the combined percentage you expect to pay. Fees vary, so this calculator does not assume a default rate."
+                  max={100}
+                  onChange={(value) => updateExitInput("sellingCostPercent", value)}
+                  step={0.1}
+                  suffix="% of sale price"
+                  value={exitInputs.sellingCostPercent}
+                />
+                <NumberField
+                  id="exit-fixed-selling-costs"
+                  label="Legal, discharge and other selling costs"
+                  hint="Use this for fixed selling expenses such as legal work, mortgage discharge, staging, cleaning, repairs, or moving costs."
+                  onChange={(value) => updateExitInput("fixedSellingCosts", value)}
+                  prefix="$"
+                  step={250}
+                  value={exitInputs.fixedSellingCosts}
+                />
+                <NumberField
+                  id="exit-mortgage-penalty"
+                  label="Mortgage prepayment penalty"
+                  hint="A lender may charge a penalty when a mortgage is paid out before the end of its term. Enter your lender's estimate when applicable."
+                  onChange={(value) => updateExitInput("mortgagePenalty", value)}
+                  prefix="$"
+                  step={250}
+                  value={exitInputs.mortgagePenalty}
+                />
+              </div>
+
+              <p className="input-note">
+                Selling costs and mortgage penalties are not assumed until entered or confirmed as
+                zero. Income tax is not estimated.
+              </p>
+            </div>
+          </section>
+
+          <section className="results-book exit-results" aria-live="polite">
+            <TimelineSlider
+              mode="sell"
+              selectedMonth={results.selectedMonth}
+              onChange={setSelectedMonth}
+            />
+
+            <div className="sheet-title results-title">
+              <div>
+                <h2>Exit result after {results.selectedMonth} months</h2>
+                <span>Expected sale price and all entered ownership costs</span>
+              </div>
+            </div>
+
+            <div className="monthly-grid four-up exit-summary-grid">
+              <div className="monthly-card exit-cash-card">
+                <span className="label-with-info">
+                  Cash after sale
+                  <InfoButton label="Sale price minus selling costs, the mortgage balance, and any entered mortgage penalty." />
+                </span>
+                <strong>{money(expectedExitScenario.cashAfterSale)}</strong>
+              </div>
+              <div
+                className={
+                  expectedExitScenario.homeValueChange >= 0
+                    ? "monthly-card exit-positive-card"
+                    : "monthly-card exit-negative-card"
+                }
+              >
+                <span>Home value change</span>
+                <strong>{money(expectedExitScenario.homeValueChange)}</strong>
+              </div>
+              <div
+                className={
+                  expectedExitScenario.netOwnershipResult >= 0
+                    ? "monthly-card exit-positive-card"
+                    : "monthly-card exit-negative-card"
+                }
+              >
+                <span className="label-with-info">
+                  Net ownership result
+                  <InfoButton label="Cash after sale minus the down payment and every entered ownership payment made to date. Positive means a net gain; negative means a net cost." />
+                </span>
+                <strong>{money(expectedExitScenario.netOwnershipResult)}</strong>
+              </div>
+              <div className="monthly-card total">
+                <span>{effectiveMonthlyLabel}</span>
+                <strong>{money(effectiveMonthlyValue)}</strong>
+              </div>
+            </div>
+
+            <div
+              className={
+                housingCashFlowDifference >= 0
+                  ? "exit-rent-comparison buying-lower-cash-flow"
+                  : "exit-rent-comparison renting-lower-cash-flow"
+              }
+            >
+              <div>
+                <span>Same-period comparison</span>
+                <strong>Estimated housing cash-flow difference:</strong>
+                <small>
+                  {expectedExitScenario.netOwnershipCost >= 0
+                    ? `Buying net cost ${money(expectedExitScenario.netOwnershipCost)}`
+                    : `Buying net gain ${money(Math.abs(expectedExitScenario.netOwnershipCost))}`} ·
+                  Renting cash paid {money(results.selectedRentCash)}
+                </small>
+              </div>
+              <strong>{signedMoney(housingCashFlowDifference)}</strong>
+            </div>
+
+            <section className="exit-section" aria-label="Equity at sale">
+              <div className="exit-section-heading">
+                <div>
+                  <p className="card-kicker">Equity at sale</p>
+                  <h3>How your equity was built</h3>
+                </div>
+                <span>Before selling costs and any mortgage prepayment penalty</span>
+              </div>
+              <div className="detail-sheet exit-detail-sheet">
+                <DetailRow
+                  amount={money(results.downPayment)}
+                  label="Original down payment"
+                  note="Cash invested at purchase"
+                />
+                <DetailRow
+                  amount={money(results.selectedPrincipalPaid)}
+                  label="Mortgage principal repaid"
+                  note="Added to your equity over time"
+                />
+                <DetailRow
+                  amount={money(expectedExitScenario.homeValueChange)}
+                  label="Home value change"
+                  note="Sale price minus purchase price"
+                />
+                {results.cmhcPremium > 0 ? (
+                  <DetailRow
+                    amount={deductionMoney(results.cmhcPremium)}
+                    label="Financed CMHC premium"
+                    note="Reduced starting equity"
+                  />
+                ) : null}
+                <DetailRow
+                  amount={money(expectedExitScenario.grossHomeEquity)}
+                  emphasis
+                  label="Gross home equity at sale"
+                  note="Sale price minus mortgage balance"
+                />
+              </div>
+            </section>
+
+            <section className="exit-section" aria-label="Cash received at sale">
+              <div className="exit-section-heading">
+                <div>
+                  <p className="card-kicker">Cash at closing</p>
+                  <h3>What you receive when the home is sold</h3>
+                </div>
+              </div>
+              <div className="detail-sheet exit-detail-sheet">
+                <DetailRow amount={money(exitInputs.salePrice)} label="Expected sale price" />
+                <DetailRow
+                  amount={percentageSellingCostsLabel}
+                  label="Percentage-based selling costs"
+                  note={`${formatOptionalPercent(exitInputs.sellingCostPercent, isSellingCostPercentComplete)} of sale price`}
+                />
+                <DetailRow
+                  amount={fixedSellingCostsLabel}
+                  label="Fixed selling costs"
+                />
+                <DetailRow
+                  amount={deductionMoney(results.balanceAtSelectedMonth)}
+                  label="Mortgage balance repaid"
+                />
+                <DetailRow
+                  amount={money(expectedExitScenario.grossHomeEquity)}
+                  label="Gross home equity"
+                  note="Includes your original down payment"
+                />
+                <DetailRow
+                  amount={mortgagePenaltyLabel}
+                  label="Mortgage prepayment penalty"
+                />
+                <DetailRow
+                  amount={money(expectedExitScenario.cashAfterSale)}
+                  emphasis
+                  label="Cash after sale"
+                />
+              </div>
+            </section>
+
+            <section className="exit-section" aria-label="Net ownership result breakdown">
+              <div className="exit-section-heading">
+                <div>
+                  <p className="card-kicker">Ownership result</p>
+                  <h3>What changed your result</h3>
+                </div>
+                <span>Down payment and principal are recovered through equity, not counted as costs</span>
+              </div>
+              <div className="exit-waterfall">
+                {[
+                  {
+                    label: "Home value change",
+                    value: expectedExitScenario.homeValueChange,
+                    kind: expectedExitScenario.homeValueChange >= 0 ? "gain" : "cost",
+                  },
+                  ...(results.cmhcPremium > 0
+                    ? [{ label: "Estimated CMHC premium", value: -results.cmhcPremium, kind: "cost" }]
+                    : []),
+                  { label: "Mortgage interest", value: -results.selectedInterestPaid, kind: "cost" },
+                  {
+                    label: "Municipal taxes",
+                    value: -results.monthlyTaxes * results.selectedMonth,
+                    kind: "cost",
+                  },
+                  {
+                    label: "Utilities",
+                    value: -results.monthlyUtilities * results.selectedMonth,
+                    kind: "cost",
+                  },
+                  {
+                    label: "Maintenance and homeowner insurance",
+                    value: -maintenanceAndInsuranceThroughExit,
+                    kind: "cost",
+                    amount: maintenanceAndInsuranceExitLabel,
+                  },
+                  {
+                    label: "Buying closing costs",
+                    value: -results.closingCosts,
+                    kind: "cost",
+                    amount: closingCostsDeductionLabel,
+                  },
+                  {
+                    label: "Selling costs",
+                    value: -expectedExitScenario.totalSellingCosts,
+                    kind: "cost",
+                    amount: sellingCostsLabel,
+                  },
+                  {
+                    label: "Mortgage prepayment penalty",
+                    value: -exitInputs.mortgagePenalty,
+                    kind: "cost",
+                    amount: mortgagePenaltyLabel,
+                  },
+                ].map((item) => {
+                  const maxExitFactor = Math.max(
+                    1,
+                    Math.abs(expectedExitScenario.homeValueChange),
+                    results.cmhcPremium,
+                    results.selectedInterestPaid,
+                    results.monthlyTaxes * results.selectedMonth,
+                    results.monthlyUtilities * results.selectedMonth,
+                    (results.monthlyMaintenance + results.monthlyHomeInsurance) *
+                      results.selectedMonth,
+                    results.closingCosts,
+                    expectedExitScenario.totalSellingCosts,
+                    exitInputs.mortgagePenalty,
+                  )
+                  const width = (Math.abs(item.value) / maxExitFactor) * 100
+
+                  return (
+                    <div className="exit-waterfall-row" key={item.label}>
+                      <span>{item.label}</span>
+                      <div className="exit-waterfall-track" aria-hidden="true">
+                        <i className={item.kind} style={{ width: `${width}%` }} />
+                      </div>
+                      <strong>{"amount" in item ? item.amount : money(item.value)}</strong>
+                    </div>
+                  )
+                })}
+                <div className="exit-waterfall-total">
+                  <span>Net ownership result</span>
+                  <strong>{money(expectedExitScenario.netOwnershipResult)}</strong>
+                </div>
+              </div>
+            </section>
+
+            <p className="comparison-note exit-note">
+              This is a simplified cash-flow scenario, not tax or investment advice. It excludes
+              income tax, opportunity cost, investment returns, inflation, and any cost not entered
+              or confirmed as zero. A principal-residence sale may still have reporting
+              requirements.
+            </p>
+          </section>
+        </div>
       )}
 
       <footer>
@@ -1499,7 +2039,8 @@ export default function Home() {
           costs, rental utilities, entered five-year renewal rates, annual rent increases
           {showCmhcDetails ? ", and an eligible estimated CMHC premium" : ""} are included. These
           rates are scenarios, not forecasts.
-          Home-price changes, investment returns, selling costs, and tenant insurance are excluded.
+          Home-price changes and selling costs are included only in Selling · Exit using the
+          entered assumptions. Investment returns and tenant insurance are excluded.
         </p>
       </footer>
     </main>
