@@ -248,6 +248,7 @@ footer {
 
 .field {
   display: flex;
+  position: relative;
   min-width: 0;
   flex-direction: column;
   border-right: 1px solid var(--line);
@@ -360,6 +361,24 @@ footer {
   font-weight: 800;
   line-height: 1;
   padding: 0;
+}
+
+.field-hint-popover {
+  position: absolute;
+  z-index: 20;
+  top: 30px;
+  left: 10px;
+  width: min(280px, calc(100% + 120px));
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 10px 24px rgba(23, 32, 51, 0.14);
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.42;
 }
 
 .monthly-card strong,
@@ -908,6 +927,7 @@ footer {
 
 .comparison-overview {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-top: 16px;
@@ -947,6 +967,7 @@ footer {
 .comparison-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--line-strong);
 }
 
 .comparison-metric {
@@ -1278,10 +1299,6 @@ tbody tr:hover {
   background: var(--blue-soft);
 }
 
-.rent-stat {
-  background: #f3e8ff;
-}
-
 .rent-table {
   min-width: 650px;
 }
@@ -1304,6 +1321,62 @@ tbody tr:hover {
 
 .comparison-table.with-advanced-costs {
   min-width: 1120px;
+}
+
+.comparison-table th.table-buying-cash,
+.comparison-table td.table-buying-cash {
+  background: color-mix(in srgb, var(--blue) 10%, white);
+}
+
+.comparison-table th.table-down-payment,
+.comparison-table td.table-down-payment {
+  background: color-mix(in srgb, var(--down-payment) 14%, white);
+}
+
+.comparison-table th.table-equity,
+.comparison-table td.table-equity,
+.comparison-table th.table-principal,
+.comparison-table td.table-principal,
+.comparison-table th.table-rent-equity,
+.comparison-table td.table-rent-equity {
+  background: color-mix(in srgb, var(--principal) 12%, white);
+}
+
+.comparison-table th.table-cmhc,
+.comparison-table td.table-cmhc {
+  background: color-mix(in srgb, var(--blue) 14%, white);
+}
+
+.comparison-table th.table-non-equity,
+.comparison-table td.table-non-equity,
+.comparison-table th.table-interest,
+.comparison-table td.table-interest {
+  background: color-mix(in srgb, var(--interest) 12%, white);
+}
+
+.comparison-table th.table-owner-extras,
+.comparison-table td.table-owner-extras {
+  background: color-mix(in srgb, var(--tax) 12%, white);
+}
+
+.comparison-table th.table-maintenance,
+.comparison-table td.table-maintenance {
+  background: color-mix(in srgb, var(--maintenance) 12%, white);
+}
+
+.comparison-table th.table-home-insurance,
+.comparison-table td.table-home-insurance {
+  background: color-mix(in srgb, var(--home-insurance) 12%, white);
+}
+
+.comparison-table th.table-closing,
+.comparison-table td.table-closing {
+  background: color-mix(in srgb, var(--closing-costs) 12%, white);
+}
+
+.comparison-table th.table-rent,
+.comparison-table td.table-rent {
+  background: color-mix(in srgb, var(--rent) 12%, white);
 }
 
 .excluded-cell {

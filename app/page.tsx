@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 import {
   buildRentSchedule,
   buildSchedule,
@@ -87,6 +87,8 @@ function NumberField({
   step?: number | "any"
 }) {
   const [draftValue, setDraftValue] = useState(String(value))
+  const [isHintOpen, setIsHintOpen] = useState(false)
+  const hintId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -102,11 +104,28 @@ function NumberField({
           {label}
         </label>
         {hint ? (
-          <button aria-label={hint} className="info-dot" title={hint} type="button">
+          <button
+            aria-controls={isHintOpen ? hintId : undefined}
+            aria-expanded={isHintOpen}
+            aria-label={hint}
+            className="info-dot"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              setIsHintOpen((current) => !current)
+            }}
+            title={hint}
+            type="button"
+          >
             i
           </button>
         ) : null}
       </div>
+      {hint && isHintOpen ? (
+        <p className="field-hint-popover" id={hintId} role="tooltip">
+          {hint}
+        </p>
+      ) : null}
       <span className="input-shell">
         {prefix ? <span className="input-affix">{prefix}</span> : null}
         <input
@@ -942,10 +961,6 @@ export default function Home() {
                   level.
                 </p>
               </div>
-              <div className="schedule-stat rent-stat">
-                <span>Total renting cash at selected month</span>
-                <strong>{money(results.selectedRentCash)}</strong>
-              </div>
             </div>
 
             <div className="table-wrap">
@@ -1159,6 +1174,35 @@ export default function Home() {
                   </span>
                 </div>
 
+                {!includeDownPaymentInComparison ? (
+                  <div className="comparison-bar-group">
+                    <div className="comparison-bar-label">
+                      <div>
+                        <strong>Buying · down payment</strong>
+                        <small>Separate up-front cash flow, excluded from buying cash paid.</small>
+                      </div>
+                      <strong>{money(results.downPayment)}</strong>
+                    </div>
+                    <div
+                      aria-label={`${money(results.downPayment)} down payment shown as a separate buying cash flow`}
+                      className="comparison-track"
+                      role="img"
+                    >
+                      <span
+                        className="down-payment-fill"
+                        style={{ width: `${comparisonSeparateDownPaymentWidth}%` }}
+                        title={`${money(results.downPayment)} separate down payment`}
+                      />
+                    </div>
+                    <div className="comparison-legend">
+                      <span>
+                        <i className="legend down-payment" />
+                        Down payment {money(results.downPayment)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
                     <div>
@@ -1269,35 +1313,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {!includeDownPaymentInComparison ? (
-                  <div className="comparison-bar-group">
-                    <div className="comparison-bar-label">
-                      <div>
-                        <strong>Buying · down payment</strong>
-                        <small>Separate up-front cash flow, excluded from buying cash paid.</small>
-                      </div>
-                      <strong>{money(results.downPayment)}</strong>
-                    </div>
-                    <div
-                      aria-label={`${money(results.downPayment)} down payment shown as a separate buying cash flow`}
-                      className="comparison-track"
-                      role="img"
-                    >
-                      <span
-                        className="down-payment-fill"
-                        style={{ width: `${comparisonSeparateDownPaymentWidth}%` }}
-                        title={`${money(results.downPayment)} separate down payment`}
-                      />
-                    </div>
-                    <div className="comparison-legend">
-                      <span>
-                        <i className="legend down-payment" />
-                        Down payment {money(results.downPayment)}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-
                 <div className="comparison-bar-group">
                   <div className="comparison-bar-label">
                     <div>
@@ -1372,8 +1387,8 @@ export default function Home() {
                 <p>
                   Compare cumulative buying payments with cumulative rent. Principal is shown
                   separately because it reduces the mortgage. The down payment can be included in
-                  buying cash paid or shown as a separate flow. Taxes and utilities follow the
-                  checkbox above.
+                  buying cash paid or shown as a separate flow. Rent cash paid includes rental
+                  utilities when entered. Taxes and utilities follow the checkbox above.
                 </p>
               </div>
             </div>
@@ -1381,7 +1396,7 @@ export default function Home() {
             <div className="table-wrap">
               <table
                 className={
-                  hasAdvancedBuyingCosts || hasAdvancedRentingCosts
+                  hasAdvancedBuyingCosts
                     ? "comparison-table with-advanced-costs"
                     : "comparison-table"
                 }
@@ -1389,42 +1404,40 @@ export default function Home() {
                 <thead>
                   <tr>
                     <th>Year</th>
-                    <th><span className="stacked-heading"><span>Buying</span><span>cash paid</span></span></th>
-                    <th><span className="stacked-heading"><span>Estimated</span><span>home equity</span></span></th>
-                    <th><span className="stacked-heading"><span>Down</span><span>payment</span></span></th>
+                    <th className="table-down-payment"><span className="stacked-heading"><span>Down</span><span>payment</span></span></th>
+                    <th className="table-buying-cash"><span className="stacked-heading"><span>Buying</span><span>cash paid</span></span></th>
+                    <th className="table-equity"><span className="stacked-heading"><span>Estimated</span><span>home equity</span></span></th>
                     {results.cmhcPremium > 0 ? (
-                      <th><span className="stacked-heading"><span>CMHC</span><span>premium</span></span></th>
+                      <th className="table-cmhc"><span className="stacked-heading"><span>CMHC</span><span>premium</span></span></th>
                     ) : null}
-                    <th><span className="stacked-heading"><span>Principal</span><span>paid</span></span></th>
-                    <th>
+                    <th className="table-principal"><span className="stacked-heading"><span>Principal</span><span>paid</span></span></th>
+                    <th className="table-non-equity">
                       <span className="stacked-heading">
                         <span>Non-equity</span>
                         <span>buying cost</span>
                       </span>
                     </th>
-                    <th><span className="stacked-heading"><span>Interest</span><span>cost</span></span></th>
-                    <th><span className="stacked-heading"><span>Taxes +</span><span>utilities</span></span></th>
+                    <th className="table-interest"><span className="stacked-heading"><span>Interest</span><span>cost</span></span></th>
+                    <th className="table-owner-extras"><span className="stacked-heading"><span>Taxes +</span><span>utilities</span></span></th>
                     {results.monthlyMaintenance > 0 ? (
-                      <th><span className="stacked-heading"><span>Main-</span><span>tenance</span></span></th>
+                      <th className="table-maintenance"><span className="stacked-heading"><span>Main-</span><span>tenance</span></span></th>
                     ) : null}
                     {results.monthlyHomeInsurance > 0 ? (
-                      <th><span className="stacked-heading"><span>Homeowner</span><span>insurance</span></span></th>
+                      <th className="table-home-insurance"><span className="stacked-heading"><span>Homeowner</span><span>insurance</span></span></th>
                     ) : null}
                     {results.closingCosts > 0 ? (
-                      <th><span className="stacked-heading"><span>Closing</span><span>costs</span></span></th>
+                      <th className="table-closing"><span className="stacked-heading"><span>Closing</span><span>costs</span></span></th>
                     ) : null}
-                    <th><span className="stacked-heading"><span>Rent</span><span>cash paid</span></span></th>
-                    {hasAdvancedRentingCosts ? (
-                      <th><span className="stacked-heading"><span>Rental</span><span>utilities</span></span></th>
-                    ) : null}
-                    <th><span className="stacked-heading"><span>Rent home</span><span>equity</span></span></th>
+                    <th className="table-rent"><span className="stacked-heading"><span>Rent</span><span>cash paid</span></span></th>
+                    <th className="table-rent-equity"><span className="stacked-heading"><span>Rent home</span><span>equity</span></span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.years.map((row, index) => (
                     <tr key={row.year}>
                       <td><strong>{row.year}</strong></td>
-                      <td>
+                      <td className="table-down-payment">{money(results.downPayment)}</td>
+                      <td className="table-buying-cash">
                         {money(
                           comparisonDownPayment +
                             row.totalPrincipalPaid +
@@ -1440,13 +1453,14 @@ export default function Home() {
                             results.closingCosts,
                         )}
                       </td>
-                      <td>
+                      <td className="table-equity">
                         {money(Math.max(0, results.purchasePrice - row.endingBalance))}
                       </td>
-                      <td>{money(results.downPayment)}</td>
-                      {results.cmhcPremium > 0 ? <td>{money(results.cmhcPremium)}</td> : null}
-                      <td>{money(row.totalPrincipalPaid)}</td>
-                      <td>
+                      {results.cmhcPremium > 0 ? (
+                        <td className="table-cmhc">{money(results.cmhcPremium)}</td>
+                      ) : null}
+                      <td className="table-principal">{money(row.totalPrincipalPaid)}</td>
+                      <td className="table-non-equity">
                         {money(
                           results.cmhcPremium +
                             row.totalInterestPaid +
@@ -1461,8 +1475,14 @@ export default function Home() {
                             results.closingCosts,
                         )}
                       </td>
-                      <td>{money(row.totalInterestPaid)}</td>
-                      <td className={!includeOwnerExtras ? "excluded-cell" : undefined}>
+                      <td className="table-interest">{money(row.totalInterestPaid)}</td>
+                      <td
+                        className={
+                          includeOwnerExtras
+                            ? "table-owner-extras"
+                            : "table-owner-extras excluded-cell"
+                        }
+                      >
                         {includeOwnerExtras
                           ? money(
                               (results.monthlyTaxes + results.monthlyUtilities) *
@@ -1472,17 +1492,22 @@ export default function Home() {
                           : "Excluded"}
                       </td>
                       {results.monthlyMaintenance > 0 ? (
-                        <td>{money(results.monthlyMaintenance * 12 * row.year)}</td>
+                        <td className="table-maintenance">
+                          {money(results.monthlyMaintenance * 12 * row.year)}
+                        </td>
                       ) : null}
                       {results.monthlyHomeInsurance > 0 ? (
-                        <td>{money(results.monthlyHomeInsurance * 12 * row.year)}</td>
+                        <td className="table-home-insurance">
+                          {money(results.monthlyHomeInsurance * 12 * row.year)}
+                        </td>
                       ) : null}
-                      {results.closingCosts > 0 ? <td>{money(results.closingCosts)}</td> : null}
-                      <td>{money(results.rentYears[index]?.totalRentalCash ?? 0)}</td>
-                      {hasAdvancedRentingCosts ? (
-                        <td>{money(results.rentYears[index]?.totalRentalUtilities ?? 0)}</td>
+                      {results.closingCosts > 0 ? (
+                        <td className="table-closing">{money(results.closingCosts)}</td>
                       ) : null}
-                      <td>$0</td>
+                      <td className="table-rent">
+                        {money(results.rentYears[index]?.totalRentalCash ?? 0)}
+                      </td>
+                      <td className="table-rent-equity">$0</td>
                     </tr>
                   ))}
                 </tbody>
