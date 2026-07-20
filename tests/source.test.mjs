@@ -6,6 +6,7 @@ const projectRoot = new URL("../", import.meta.url)
 
 test("ships the home decision calculator features and defaults", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8")
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8")
 
   assert.match(page, /purchasePrice: 650000/)
   assert.match(page, /interestRate: 4\.3/)
@@ -28,6 +29,8 @@ test("ships the home decision calculator features and defaults", async () => {
   assert.match(page, /Monthly spending in month/)
   assert.match(page, /Total monthly spending/)
   assert.match(page, /Monthly costs \/ month/)
+  assert.match(page, /Monthly rent \+ utilities/)
+  assert.match(page, /results\.monthlyRent \+ results\.monthlyRentalUtilities/)
   assert.match(page, /Utilities \+ maintenance \+ homeowner insurance/)
   assert.match(page, /Through month \{results\.selectedMonth\} - Year \{selectedYear\}, month/)
   assert.match(page, /Contributes to equity/)
@@ -35,6 +38,7 @@ test("ships the home decision calculator features and defaults", async () => {
   assert.match(page, /<span>monthly costs<\/span>/)
   assert.match(page, /monthlyOwnershipCosts \* 12 \* row\.year/)
   assert.match(page, /info-dot/)
+  assert.match(css, /\.slider-card \+ \.monthly-grid/)
   assert.match(page, /mortgage-status-grid/)
   assert.match(page, /draftValue/)
   assert.match(page, /document\.activeElement !== inputRef\.current/)
@@ -69,7 +73,7 @@ test("ships the home decision calculator features and defaults", async () => {
   assert.match(page, /results\.monthlyTaxes \* 12 \* row\.year/)
   assert.match(page, /results\.monthlyUtilities \+ results\.monthlyOwnerAdvanced/)
   assert.doesNotMatch(page, /lowerPaymentOption|totalPaymentDifference|comparison-difference/)
-  assert.doesNotMatch(page, /Hide graph|Show graph|Total monthly cash out|Buying cost at month|Reduces what you owe/)
+  assert.doesNotMatch(page, /Hide graph|Show graph|Total monthly cash out|Buying cost at month|Reduces what you owe|Renting cash after/)
   assert.doesNotMatch(page, /annualRentIncrease/)
   assert.doesNotMatch(page, /Hydro|monthlyHydro/)
 })

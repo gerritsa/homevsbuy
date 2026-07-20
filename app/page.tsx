@@ -924,19 +924,6 @@ export default function Home() {
                   <strong>{money(results.selectedRentCash)}</strong>
                 </div>
               </div>
-
-              <div className="selected-grid rent-milestones">
-                {[1, 5, 10, 25].map((year) => (
-                  <div key={year}>
-                    <span>Renting cash after {year} {year === 1 ? "year" : "years"}</span>
-                    <strong>
-                      {money(
-                        (results.monthlyRent + results.monthlyRentalUtilities) * 12 * year,
-                      )}
-                    </strong>
-                  </div>
-                ))}
-              </div>
             </section>
           </div>
 
@@ -1026,8 +1013,10 @@ export default function Home() {
                   <strong>{percent(inputs.interestRate)}</strong>
                 </div>
                 <div>
-                  <span>Monthly rent</span>
-                  <strong>{preciseMoney(results.monthlyRent)}</strong>
+                  <span>Monthly rent + utilities</span>
+                  <strong>
+                    {preciseMoney(results.monthlyRent + results.monthlyRentalUtilities)}
+                  </strong>
                 </div>
               </div>
 
