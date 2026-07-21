@@ -125,6 +125,23 @@ function signedMoney(value: number) {
   return `${value > 0 ? "+" : "-"}${money(Math.abs(value))}`
 }
 
+function durationPhrase(totalMonths: number) {
+  const safeMonths = Math.max(1, Math.round(totalMonths))
+  const years = Math.floor(safeMonths / 12)
+  const months = safeMonths % 12
+  const parts = []
+
+  if (years > 0) {
+    parts.push(`${years} ${years === 1 ? "year" : "years"}`)
+  }
+
+  if (months > 0) {
+    parts.push(`${months} ${months === 1 ? "month" : "months"}`)
+  }
+
+  return parts.join(" and ")
+}
+
 function percent(value: number) {
   return `${(Number.isFinite(value) ? value : 0).toFixed(1)}%`
 }
@@ -483,6 +500,7 @@ export default function Home() {
     principalVsInterestTotal === 0 ? 0 : (results.selectedInterestPaid / principalVsInterestTotal) * 100
   const selectedPrincipalPercent =
     principalVsInterestTotal === 0 ? 0 : (results.selectedPrincipalPaid / principalVsInterestTotal) * 100
+  const selectedDurationPhrase = durationPhrase(results.selectedMonth)
   const selectedYear = Math.ceil(results.selectedMonth / 12)
   const selectedMonthInYear = ((results.selectedMonth - 1) % 12) + 1
   const monthlyOwnershipCosts = results.monthlyUtilities + results.monthlyOwnerAdvanced
@@ -611,9 +629,15 @@ export default function Home() {
     })
   const expectedExitScenario = exitScenarioFor(exitInputs.salePrice)
   const effectiveMonthlyLabel =
-    expectedExitScenario.netOwnershipResult >= 0 ? "Net gain per month" : "Effective cost per month"
+    expectedExitScenario.netOwnershipResult >= 0 ? "Cash gain per month" : "Effective cost per month"
   const effectiveMonthlyValue = Math.abs(expectedExitScenario.netCostPerMonth)
   const housingCashFlowDifference = expectedExitScenario.buyingAdvantageVsRent
+  const exitComparisonWinner =
+    housingCashFlowDifference === 0
+      ? "Buying and renting are tied"
+      : housingCashFlowDifference > 0
+      ? "Buying is ahead"
+      : "Renting is ahead"
   const percentageSellingCostsLabel = formatOptionalDeductionMoney(
     expectedExitScenario.percentageSellingCosts,
     isSellingCostPercentComplete,
@@ -626,7 +650,15 @@ export default function Home() {
     exitInputs.mortgagePenalty,
     isMortgagePenaltyComplete,
   )
+  const mortgagePenaltySpendLabel = formatOptionalMoney(
+    exitInputs.mortgagePenalty,
+    isMortgagePenaltyComplete,
+  )
   const sellingCostsLabel = formatOptionalDeductionMoney(
+    expectedExitScenario.totalSellingCosts,
+    isSellingCostPercentComplete && isFixedSellingCostsComplete,
+  )
+  const sellingCostsSpendLabel = formatOptionalMoney(
     expectedExitScenario.totalSellingCosts,
     isSellingCostPercentComplete && isFixedSellingCostsComplete,
   )
@@ -640,6 +672,28 @@ export default function Home() {
     maintenanceAndInsuranceThroughExit,
     isMaintenanceComplete && isHomeInsuranceComplete,
   )
+  const maintenanceAndInsuranceSpendLabel = formatOptionalMoney(
+    maintenanceAndInsuranceThroughExit,
+    isMaintenanceComplete && isHomeInsuranceComplete,
+  )
+  const totalMortgagePaymentsThroughExit =
+    results.selectedPrincipalPaid + results.selectedInterestPaid
+  const taxesThroughExit = results.monthlyTaxes * results.selectedMonth
+  const utilitiesThroughExit = results.monthlyUtilities * results.selectedMonth
+  const cashPaidBeforeSale =
+    results.downPayment +
+    totalMortgagePaymentsThroughExit +
+    recurringOwnershipCostsThroughExit +
+    results.closingCosts
+  const nonEquityCostsThroughExit =
+    results.cmhcPremium +
+    results.selectedInterestPaid +
+    taxesThroughExit +
+    utilitiesThroughExit +
+    maintenanceAndInsuranceThroughExit +
+    results.closingCosts +
+    expectedExitScenario.totalSellingCosts +
+    exitInputs.mortgagePenalty
   const resetCalculator = () => {
     setInputs(initialInputs)
     setExitInputs(initialExitInputs)
@@ -811,7 +865,7 @@ export default function Home() {
                 <details className="advanced-panel" open>
                   <summary>Advanced buying costs (optional)</summary>
                   <div className="advanced-content">
-                    <div className="field-grid">
+                    <div className="field-grid advanced-cost-grid">
                       <NumberField
                         id="monthly-maintenance"
                         label="Maintenance"
@@ -1323,6 +1377,26 @@ export default function Home() {
 
               </div>
 
+              <section className="plain-language-summary" aria-label="Plain-language comparison">
+                <p className="card-kicker">Plain-language read</p>
+                <h3>
+                  If you bought at {money(results.purchasePrice)} and stopped after{" "}
+                  {selectedDurationPhrase}, with the home still worth{" "}
+                  {money(results.purchasePrice)}.
+                </h3>
+                <p>
+                  You would have paid {money(comparisonBuyingAfterPurchase)} after purchase, and
+                  about {money(comparisonHomeEquity)} would be estimated home equity because your
+                  mortgage balance is lower. The part that looks like housing cost, because it is
+                  not recovered as equity, is {money(comparisonBuyingCost)}. Renting for the same
+                  period would have cost {money(results.selectedRentCash)} and would build $0 home
+                  equity.
+                </p>
+                <strong>
+                  For a sale-price comparison with selling costs, use the Selling · Exit tab.
+                </strong>
+              </section>
+
               <div className="comparison-overview">
                 <section className="comparison-side buying-side">
                   <div className="comparison-side-heading">
@@ -1827,8 +1901,8 @@ export default function Home() {
                 }
               >
                 <span className="label-with-info">
-                  Net ownership result
-                  <InfoButton label="Cash after sale minus the down payment and every entered ownership payment made to date. Positive means a net gain; negative means a net cost." />
+                  Buying result after sale
+                  <InfoButton label="Cash after sale minus the down payment and every entered ownership payment made to date. Positive means you got back more than you paid in; negative means the remaining total buying cost after sale." />
                 </span>
                 <strong>{money(expectedExitScenario.netOwnershipResult)}</strong>
               </div>
@@ -1850,13 +1924,157 @@ export default function Home() {
                 <strong>Estimated housing cash-flow difference:</strong>
                 <small>
                   {expectedExitScenario.netOwnershipCost >= 0
-                    ? `Buying net cost ${money(expectedExitScenario.netOwnershipCost)}`
-                    : `Buying net gain ${money(Math.abs(expectedExitScenario.netOwnershipCost))}`} ·
+                    ? `Buying total cost after sale ${money(expectedExitScenario.netOwnershipCost)}`
+                    : `Buying cash gain after sale ${money(Math.abs(expectedExitScenario.netOwnershipCost))}`} ·
                   Renting cash paid {money(results.selectedRentCash)}
                 </small>
               </div>
               <strong>{signedMoney(housingCashFlowDifference)}</strong>
             </div>
+
+            <section className="exit-section exit-story-section" aria-label="At the time of selling">
+              <div className="exit-section-heading">
+                <div>
+                  <p className="card-kicker">At the time of selling</p>
+                  <h3>The buying story in plain numbers</h3>
+                </div>
+                <span>Principal is separated from cost because it lowers the mortgage balance and becomes equity</span>
+              </div>
+              <div className="exit-story-panel">
+                <div className="exit-story-summary">
+                  <span>
+                    <small>Bought for</small>
+                    <strong>{money(results.purchasePrice)}</strong>
+                  </span>
+                  <span>
+                    <small>Sold after</small>
+                    <strong>{selectedDurationPhrase}</strong>
+                  </span>
+                  <span>
+                    <small>Sold for</small>
+                    <strong>{money(exitInputs.salePrice)}</strong>
+                  </span>
+                </div>
+
+                <div className="exit-story-stack">
+                  <article className="exit-story-block">
+                    <header>
+                      <span>1</span>
+                      <div>
+                        <h4>Mortgage payments split in two</h4>
+                        <p>
+                          You paid {money(totalMortgagePaymentsThroughExit)} to the lender.{" "}
+                          {money(results.selectedPrincipalPaid)} reduced the mortgage balance, and{" "}
+                          {money(results.selectedInterestPaid)} was interest cost.
+                        </p>
+                      </div>
+                    </header>
+                    <div className="exit-metric-strip">
+                      <div>
+                        <span>Total mortgage payments</span>
+                        <strong>{money(totalMortgagePaymentsThroughExit)}</strong>
+                      </div>
+                      <div className="equity">
+                        <span>Principal that became equity</span>
+                        <strong>{money(results.selectedPrincipalPaid)}</strong>
+                      </div>
+                      <div className="cost">
+                        <span>Interest paid</span>
+                        <strong>{money(results.selectedInterestPaid)}</strong>
+                      </div>
+                    </div>
+                  </article>
+
+                  <article className="exit-story-block">
+                    <header>
+                      <span>2</span>
+                      <div>
+                        <h4>Equity you would own before sale deductions</h4>
+                        <p>
+                          Your down payment, principal repaid, and price change create gross equity.
+                        </p>
+                      </div>
+                    </header>
+                    <div className="exit-line-items">
+                      <div><span>Down payment</span><strong>{money(results.downPayment)}</strong></div>
+                      <div><span>Principal repaid</span><strong>{money(results.selectedPrincipalPaid)}</strong></div>
+                      <div><span>Home value change</span><strong>{money(expectedExitScenario.homeValueChange)}</strong></div>
+                      {results.cmhcPremium > 0 ? (
+                        <div><span>Financed CMHC premium</span><strong>{deductionMoney(results.cmhcPremium)}</strong></div>
+                      ) : null}
+                      <div className="total"><span>Gross equity at sale</span><strong>{money(expectedExitScenario.grossHomeEquity)}</strong></div>
+                    </div>
+                  </article>
+
+                  <article className="exit-story-block">
+                    <header>
+                      <span>3</span>
+                      <div>
+                        <h4>Cash costs that did not become equity</h4>
+                        <p>
+                          These are the ownership and transaction costs that lower the buying result.
+                        </p>
+                      </div>
+                    </header>
+                    <div className="exit-line-items cost-list">
+                      {results.cmhcPremium > 0 ? (
+                        <div><span>Estimated CMHC premium</span><strong>{money(results.cmhcPremium)}</strong></div>
+                      ) : null}
+                      <div><span>Mortgage interest</span><strong>{money(results.selectedInterestPaid)}</strong></div>
+                      <div><span>Municipal taxes</span><strong>{money(taxesThroughExit)}</strong></div>
+                      <div><span>Utilities</span><strong>{money(utilitiesThroughExit)}</strong></div>
+                      <div><span>Maintenance and homeowner insurance</span><strong>{maintenanceAndInsuranceSpendLabel}</strong></div>
+                      <div><span>Buying closing costs</span><strong>{optionalClosingCostsLabel}</strong></div>
+                      <div><span>Selling costs</span><strong>{sellingCostsSpendLabel}</strong></div>
+                      <div><span>Mortgage prepayment penalty</span><strong>{mortgagePenaltySpendLabel}</strong></div>
+                      <div className="total"><span>Total entered non-equity costs</span><strong>{money(nonEquityCostsThroughExit)}</strong></div>
+                    </div>
+                  </article>
+
+                  <article className="exit-story-block result-block">
+                    <header>
+                      <span>4</span>
+                      <div>
+                        <h4>What comes back after selling</h4>
+                        <p>
+                          The sale pays off the remaining mortgage first. What is left is compared
+                          with all buying cash paid and with the rent you would have paid.
+                        </p>
+                      </div>
+                    </header>
+                    <div className="exit-line-items sale-math">
+                      <div><span>Expected sale price</span><strong>{money(exitInputs.salePrice)}</strong></div>
+                      <div><span>Mortgage balance repaid</span><strong>{deductionMoney(results.balanceAtSelectedMonth)}</strong></div>
+                      <div><span>Selling costs</span><strong>{sellingCostsLabel}</strong></div>
+                      <div><span>Mortgage prepayment penalty</span><strong>{mortgagePenaltyLabel}</strong></div>
+                      <div className="total"><span>Cash after sale</span><strong>{money(expectedExitScenario.cashAfterSale)}</strong></div>
+                    </div>
+                    <div className="exit-final-comparison">
+                      <div>
+                        <span>Cash paid before selling</span>
+                        <strong>{money(cashPaidBeforeSale)}</strong>
+                      </div>
+                      <div>
+                        <span>Buying result</span>
+                        <strong>{money(expectedExitScenario.netOwnershipResult)}</strong>
+                      </div>
+                      <div>
+                        <span>Renting cash paid</span>
+                        <strong>{money(results.selectedRentCash)}</strong>
+                      </div>
+                      <div className={housingCashFlowDifference >= 0 ? "winner buying" : "winner renting"}>
+                        <span>{exitComparisonWinner}</span>
+                        <strong>
+                          {housingCashFlowDifference === 0
+                            ? money(0)
+                            : money(Math.abs(housingCashFlowDifference))}
+                        </strong>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </section>
 
             <section className="exit-section" aria-label="Equity at sale">
               <div className="exit-section-heading">
@@ -1937,10 +2155,10 @@ export default function Home() {
               </div>
             </section>
 
-            <section className="exit-section" aria-label="Net ownership result breakdown">
+            <section className="exit-section" aria-label="Buying result after sale breakdown">
               <div className="exit-section-heading">
                 <div>
-                  <p className="card-kicker">Ownership result</p>
+                  <p className="card-kicker">Buying result</p>
                   <h3>What changed your result</h3>
                 </div>
                 <span>Down payment and principal are recovered through equity, not counted as costs</span>
@@ -2017,7 +2235,7 @@ export default function Home() {
                   )
                 })}
                 <div className="exit-waterfall-total">
-                  <span>Net ownership result</span>
+                  <span>Buying result after sale</span>
                   <strong>{money(expectedExitScenario.netOwnershipResult)}</strong>
                 </div>
               </div>
