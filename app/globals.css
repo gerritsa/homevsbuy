@@ -108,6 +108,39 @@ footer {
   font-size: 0.8rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.config-status {
+  width: min(1180px, calc(100% - 40px));
+  margin: 10px auto 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.print-report {
+  display: none;
+}
+
 .reset-button:hover,
 .tab:hover {
   border-color: var(--blue);
@@ -1910,6 +1943,269 @@ footer {
   text-align: center;
 }
 
+@page {
+  size: letter landscape;
+  margin: 0.35in;
+}
+
+@media print {
+  html,
+  body {
+    background: white;
+  }
+
+  body {
+    color: var(--ink);
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  main > :not(.print-report) {
+    display: none !important;
+  }
+
+  .print-report {
+    display: block;
+    width: 100%;
+  }
+
+  .print-page {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-page:first-child {
+    break-before: auto;
+    page-break-before: auto;
+  }
+
+  .print-page-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 0.14in;
+    padding-bottom: 0.08in;
+    border-bottom: 2px solid var(--line-strong);
+  }
+
+  .print-page-heading h2 {
+    margin: 0;
+    font-size: 18pt;
+    line-height: 1.1;
+  }
+
+  .print-page-heading span {
+    color: var(--muted);
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  .print-report .card-kicker {
+    margin-bottom: 3px;
+    font-size: 7pt;
+  }
+
+  .print-workbook,
+  .print-panel {
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .print-workbook {
+    grid-template-columns: minmax(2.65in, 0.78fr) minmax(0, 1.45fr);
+  }
+
+  .print-workbook.exit-workbook {
+    grid-template-columns: minmax(2.45in, 0.72fr) minmax(0, 1.55fr);
+  }
+
+  .print-report .tab-panel,
+  .print-report .results-book {
+    padding: 0.14in;
+  }
+
+  .print-report .sheet-title {
+    margin-bottom: 0.1in;
+  }
+
+  .print-report .sheet-title h2,
+  .print-report .results-title h2 {
+    font-size: 11pt;
+  }
+
+  .print-report .sheet-title span,
+  .print-report .results-title span {
+    font-size: 7pt;
+  }
+
+  .print-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin-bottom: 0.16in;
+    border-top: 1px solid var(--line-strong);
+    border-left: 1px solid var(--line-strong);
+  }
+
+  .print-two-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.18in;
+    margin-bottom: 0.16in;
+  }
+
+  .print-two-column h3 {
+    margin: 0 0 0.06in;
+    font-size: 10pt;
+  }
+
+  .print-report .detail-sheet {
+    margin-top: 0;
+  }
+
+  .print-report .detail-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    min-height: 0;
+    break-inside: avoid;
+  }
+
+  .print-report .detail-row > span,
+  .print-report .detail-row > strong {
+    min-height: 0;
+    padding: 5px 7px;
+    font-size: 7.5pt;
+  }
+
+  .print-report .detail-row > span small {
+    font-size: 6.5pt;
+  }
+
+  .print-note {
+    margin: 0 0 0.12in;
+    color: var(--muted);
+    font-size: 8pt;
+    line-height: 1.35;
+  }
+
+  .print-report .monthly-grid,
+  .print-report .mortgage-status-grid,
+  .print-report .comparison-assumptions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .print-report .monthly-card {
+    grid-template-rows: minmax(0.34in, auto) auto;
+    min-height: 0.62in;
+    padding: 0.08in;
+  }
+
+  .print-report .monthly-card > span:first-child {
+    min-height: 0;
+  }
+
+  .print-report .monthly-card span,
+  .print-report .comparison-assumptions span,
+  .print-report .mortgage-status-grid span {
+    font-size: 6.5pt;
+  }
+
+  .print-report .monthly-card strong,
+  .print-report .mortgage-status-grid strong {
+    font-size: 9pt;
+  }
+
+  .print-graph-panel {
+    margin-top: 0.13in;
+    padding: 0.12in;
+  }
+
+  .print-report .graph-heading {
+    margin-bottom: 0.08in;
+  }
+
+  .print-report .graph-heading h3 {
+    font-size: 9.5pt;
+  }
+
+  .print-report .payment-total {
+    padding: 0.08in;
+  }
+
+  .print-report .payment-total > strong {
+    font-size: 12pt;
+  }
+
+  .print-report .payment-split-bar {
+    height: 0.16in;
+    margin-top: 0.08in;
+  }
+
+  .print-report .mortgage-status-grid {
+    margin-top: 0.08in;
+  }
+
+  .print-report .mortgage-status-grid > div,
+  .print-report .comparison-assumptions > div {
+    padding: 0.07in;
+  }
+
+  .print-report .comparison-overview {
+    gap: 0.12in;
+    margin-top: 0.12in;
+  }
+
+  .print-report .comparison-metric {
+    min-height: 0.9in;
+    padding: 0.08in;
+  }
+
+  .print-report .comparison-metric > span,
+  .print-report .comparison-metric > small {
+    font-size: 6.3pt;
+  }
+
+  .print-report .comparison-metric > strong {
+    font-size: 9pt;
+  }
+
+  .print-report .comparison-upfront,
+  .print-report .comparison-side-heading,
+  .print-report .exit-rent-comparison {
+    padding: 0.08in;
+  }
+
+  .print-report .exit-section {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .print-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: collapse;
+    font-size: 7pt;
+    page-break-inside: auto;
+  }
+
+  .print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-table th,
+  .print-table td {
+    padding: 4px 5px;
+    white-space: normal;
+  }
+
+  .print-table th {
+    font-size: 6.5pt;
+  }
+}
+
 @media (max-width: 980px) {
   .workbook,
   .exit-workbook {
@@ -1968,7 +2264,20 @@ footer {
   }
 
   .site-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
     min-height: 62px;
+    padding: 12px 0;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .config-status {
+    width: min(100% - 24px, 1180px);
+    text-align: left;
   }
 
   .brand span:last-child {

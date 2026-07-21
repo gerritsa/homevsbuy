@@ -41,6 +41,23 @@ type OptionalInputKey =
 
 type OptionalExitInputKey = "sellingCostPercent" | "fixedSellingCosts" | "mortgagePenalty"
 
+type ActiveTab = "buy" | "rent" | "compare" | "exit"
+
+type CalculatorConfigExport = {
+  app: "home-cash-flow-calculator"
+  version: 1
+  exportedAt: string
+  inputs: CalculatorInputs
+  exitInputs: ExitInputs
+  confirmedInputZeros: Record<OptionalInputKey, boolean>
+  confirmedExitZeros: Record<OptionalExitInputKey, boolean>
+  activeTab: ActiveTab
+  selectedMonth: number
+  includeOwnerExtras: boolean
+  renewalRates: number[]
+  mortgagePaymentFrequency: MortgagePaymentFrequency
+}
+
 const initialInputs: CalculatorInputs = {
   purchasePrice: 650000,
   downPaymentPercent: 20,
@@ -62,6 +79,10 @@ const initialExitInputs: ExitInputs = {
   fixedSellingCosts: 0,
   mortgagePenalty: 0,
 }
+
+const CONFIG_APP_ID = "home-cash-flow-calculator"
+const CONFIG_VERSION = 1
+const CONFIG_FILE_EXTENSION = "homebuy.json"
 
 const optionalInputKeys: OptionalInputKey[] = [
   "annualRentIncrease",
@@ -112,6 +133,99 @@ const mortgagePaymentFrequencyOptions: {
     description: "One quarter of the monthly payment every week, for 52 payments per year.",
   },
 ]
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function finiteNumberFrom(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback
+}
+
+function numberRecordFrom<T extends Record<string, number>>(
+  value: unknown,
+  defaults: T,
+): T {
+  const source = isPlainObject(value) ? value : {}
+
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, fallback]) => [
+      key,
+      finiteNumberFrom(source[key], fallback),
+    ]),
+  ) as T
+}
+
+function booleanRecordFrom<T extends Record<string, boolean>>(
+  value: unknown,
+  defaults: T,
+): T {
+  const source = isPlainObject(value) ? value : {}
+
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, fallback]) => [
+      key,
+      typeof source[key] === "boolean" ? source[key] : fallback,
+    ]),
+  ) as T
+}
+
+function isMortgagePaymentFrequency(value: unknown): value is MortgagePaymentFrequency {
+  return mortgagePaymentFrequencyOptions.some((option) => option.value === value)
+}
+
+function isActiveTab(value: unknown): value is ActiveTab {
+  return value === "buy" || value === "rent" || value === "compare" || value === "exit"
+}
+
+function selectedMonthFrom(value: unknown) {
+  const month = Math.round(finiteNumberFrom(value, 1))
+
+  return Math.min(LONG_TERM_MONTHS, Math.max(1, month))
+}
+
+function renewalRatesFrom(value: unknown, defaults: number[]) {
+  const source = Array.isArray(value) ? value : []
+
+  return defaults.map((fallback, index) => finiteNumberFrom(source[index], fallback))
+}
+
+function parseConfigExport(value: unknown): CalculatorConfigExport {
+  if (!isPlainObject(value)) {
+    throw new Error("The selected file is not a calculator config.")
+  }
+
+  if (value.app !== CONFIG_APP_ID || value.version !== CONFIG_VERSION) {
+    throw new Error("This config file is not compatible with this calculator.")
+  }
+
+  return {
+    app: CONFIG_APP_ID,
+    version: CONFIG_VERSION,
+    exportedAt:
+      typeof value.exportedAt === "string" && value.exportedAt
+        ? value.exportedAt
+        : new Date().toISOString(),
+    inputs: numberRecordFrom(value.inputs, initialInputs),
+    exitInputs: numberRecordFrom(value.exitInputs, initialExitInputs),
+    confirmedInputZeros: booleanRecordFrom(
+      value.confirmedInputZeros,
+      initialConfirmedInputZeros,
+    ),
+    confirmedExitZeros: booleanRecordFrom(
+      value.confirmedExitZeros,
+      initialConfirmedExitZeros,
+    ),
+    activeTab: isActiveTab(value.activeTab) ? value.activeTab : "buy",
+    selectedMonth: selectedMonthFrom(value.selectedMonth),
+    includeOwnerExtras:
+      typeof value.includeOwnerExtras === "boolean" ? value.includeOwnerExtras : true,
+    renewalRates: renewalRatesFrom(value.renewalRates, [4.3, 4.3, 4.3, 4.3, 4.3]),
+    mortgagePaymentFrequency: isMortgagePaymentFrequency(value.mortgagePaymentFrequency)
+      ? value.mortgagePaymentFrequency
+      : "monthly",
+  }
+}
 
 const currency = new Intl.NumberFormat("en-CA", {
   style: "currency",
@@ -398,12 +512,14 @@ export default function Home() {
   const [exitInputs, setExitInputs] = useState(initialExitInputs)
   const [confirmedInputZeros, setConfirmedInputZeros] = useState(initialConfirmedInputZeros)
   const [confirmedExitZeros, setConfirmedExitZeros] = useState(initialConfirmedExitZeros)
-  const [activeTab, setActiveTab] = useState<"buy" | "rent" | "compare" | "exit">("buy")
+  const [activeTab, setActiveTab] = useState<ActiveTab>("buy")
   const [selectedMonth, setSelectedMonth] = useState(1)
   const [includeOwnerExtras, setIncludeOwnerExtras] = useState(true)
   const [renewalRates, setRenewalRates] = useState([4.3, 4.3, 4.3, 4.3, 4.3])
   const [mortgagePaymentFrequency, setMortgagePaymentFrequency] =
     useState<MortgagePaymentFrequency>("monthly")
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const [configStatus, setConfigStatus] = useState("")
 
   const results = useMemo(() => {
     const mortgageAmounts = calculateMortgageAmounts(
@@ -745,10 +861,68 @@ export default function Home() {
     setExitInputs(initialExitInputs)
     setConfirmedInputZeros(initialConfirmedInputZeros)
     setConfirmedExitZeros(initialConfirmedExitZeros)
+    setActiveTab("buy")
     setSelectedMonth(1)
     setIncludeOwnerExtras(true)
     setRenewalRates([4.3, 4.3, 4.3, 4.3, 4.3])
     setMortgagePaymentFrequency("monthly")
+    setConfigStatus("")
+  }
+
+  const buildCurrentConfig = (): CalculatorConfigExport => ({
+    app: CONFIG_APP_ID,
+    version: CONFIG_VERSION,
+    exportedAt: new Date().toISOString(),
+    inputs,
+    exitInputs,
+    confirmedInputZeros,
+    confirmedExitZeros,
+    activeTab,
+    selectedMonth: results.selectedMonth,
+    includeOwnerExtras,
+    renewalRates,
+    mortgagePaymentFrequency,
+  })
+
+  const exportConfig = () => {
+    const currentConfig = buildCurrentConfig()
+    const serializedConfig = JSON.stringify(currentConfig, null, 2)
+    const blob = new Blob([serializedConfig], { type: "application/json" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    const dateStamp = new Date().toISOString().slice(0, 10)
+
+    link.href = url
+    link.download = `home-cash-flow-${dateStamp}.${CONFIG_FILE_EXTENSION}`
+    document.body.append(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    setConfigStatus("Config exported.")
+  }
+
+  const importConfig = async (file: File) => {
+    try {
+      const importedConfig = parseConfigExport(JSON.parse(await file.text()))
+
+      setInputs(importedConfig.inputs)
+      setExitInputs(importedConfig.exitInputs)
+      setConfirmedInputZeros(importedConfig.confirmedInputZeros)
+      setConfirmedExitZeros(importedConfig.confirmedExitZeros)
+      setActiveTab(importedConfig.activeTab)
+      setSelectedMonth(importedConfig.selectedMonth)
+      setIncludeOwnerExtras(importedConfig.includeOwnerExtras)
+      setRenewalRates(importedConfig.renewalRates)
+      setMortgagePaymentFrequency(importedConfig.mortgagePaymentFrequency)
+      setConfigStatus("Config imported.")
+    } catch (error) {
+      setConfigStatus(error instanceof Error ? error.message : "Config import failed.")
+    }
+  }
+
+  const exportPrintablePages = () => {
+    setConfigStatus("Preparing printable pages.")
+    window.setTimeout(() => window.print(), 0)
   }
 
   return (
@@ -758,10 +932,45 @@ export default function Home() {
           <span className="brand-mark" aria-hidden="true">H</span>
           <span>Home Cash-Flow Calculator</span>
         </a>
-        <button className="reset-button" onClick={resetCalculator} type="button">
-          Reset
-        </button>
+        <div className="header-actions" aria-label="Calculator actions">
+          <button className="reset-button" onClick={exportPrintablePages} type="button">
+            Export print pages
+          </button>
+          <button className="reset-button" onClick={exportConfig} type="button">
+            Export config
+          </button>
+          <button
+            className="reset-button"
+            onClick={() => importInputRef.current?.click()}
+            type="button"
+          >
+            Import config
+          </button>
+          <button className="reset-button" onClick={resetCalculator} type="button">
+            Reset
+          </button>
+          <input
+            accept=".json,.homebuy.json,application/json"
+            className="visually-hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+
+              if (file) {
+                void importConfig(file)
+              }
+
+              event.target.value = ""
+            }}
+            ref={importInputRef}
+            type="file"
+          />
+        </div>
       </header>
+      {configStatus ? (
+        <p className="config-status" role="status">
+          {configStatus}
+        </p>
+      ) : null}
 
       <section className="hero" id="top">
         <div>
@@ -2342,6 +2551,506 @@ export default function Home() {
           </section>
         </div>
       )}
+
+      <section className="print-report" aria-label="Printable calculator export">
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Buying · Mortgage</p>
+              <h2>Buying overview</h2>
+            </div>
+            <span>Page 1 of Buying</span>
+          </header>
+
+          <div className="workbook print-workbook">
+            <section className="input-book" aria-label="Printed buying inputs">
+              <div className="tab-panel">
+                <div className="sheet-title">
+                  <h2>Buying inputs</h2>
+                  <span>Mortgage worksheet</span>
+                </div>
+                <div className="detail-sheet print-detail-sheet">
+                  <DetailRow amount={money(results.purchasePrice)} label="Home price" />
+                  <DetailRow amount={percent(results.downPaymentPercent)} label="Down payment" />
+                  <DetailRow amount={percent(inputs.interestRate)} label="Interest rate for first 5-year term" />
+                  <DetailRow amount={`${inputs.amortizationYears} years`} label="Repayment period" />
+                  <DetailRow amount={selectedPaymentFrequencyOption.label} label="Payment frequency" />
+                  <DetailRow amount={money(inputs.annualTaxes)} label="Property taxes/year" />
+                  <DetailRow amount={preciseMoney(inputs.monthlyUtilities)} label="Utilities/month" />
+                  <DetailRow amount={optionalClosingCostsLabel} label="Closing costs" />
+                </div>
+              </div>
+            </section>
+
+            <section className="results-book" aria-label="Printed buying results">
+              <div className="sheet-title results-title">
+                <div>
+                  <h2>Monthly spending in month {results.selectedMonth}</h2>
+                  <span>Year {selectedYear}, month {selectedMonthInYear}</span>
+                </div>
+              </div>
+
+              <div className="monthly-grid four-up">
+                <div className="monthly-card owner">
+                  <span>Mortgage payment</span>
+                  <strong>{preciseMoney(results.selectedMonthMortgagePayment)}</strong>
+                </div>
+                <div className="monthly-card">
+                  <span>Property taxes/month</span>
+                  <strong>{preciseMoney(results.monthlyTaxes)}</strong>
+                </div>
+                <div className="monthly-card">
+                  <span>Home operating costs/month</span>
+                  <strong>{preciseMoney(monthlyOwnershipCosts)}</strong>
+                </div>
+                <div className="monthly-card total">
+                  <span>Monthly total</span>
+                  <strong>{preciseMoney(results.selectedMonthlyOwnerTotal)}</strong>
+                </div>
+              </div>
+
+              <div className="graph-panel print-graph-panel">
+                <div className="graph-heading">
+                  <div>
+                    <p className="card-kicker">Mortgage graph</p>
+                    <h3>Where your mortgage payments went</h3>
+                  </div>
+                  <span>Through month {results.selectedMonth}</span>
+                </div>
+                <div className="payment-total">
+                  <span>Total mortgage payments to date</span>
+                  <strong>{money(principalVsInterestTotal)}</strong>
+                  <small>Down payment, taxes, utilities, and advanced costs are not included here.</small>
+                </div>
+                <div className="payment-split-bar" role="img">
+                  <span className="principal" style={{ width: `${selectedPrincipalPercent}%` }} />
+                  <span className="interest" style={{ width: `${selectedInterestPercent}%` }} />
+                </div>
+                <div className="mortgage-status-grid">
+                  <div>
+                    <span>Mortgage left to pay</span>
+                    <strong>{money(results.balanceAtSelectedMonth)}</strong>
+                  </div>
+                  <div>
+                    <span>Mortgage repaid</span>
+                    <strong>{percent(results.paidOffAtSelectedMonth)}</strong>
+                  </div>
+                  <div>
+                    <span>Estimated payoff</span>
+                    <strong>{payoffDurationPhrase}</strong>
+                  </div>
+                  <div>
+                    <span>Time saved</span>
+                    <strong>{payoffSavingsPhrase}</strong>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Buying · Mortgage</p>
+              <h2>Mortgage schedule</h2>
+            </div>
+            <span>Page 2 of Buying</span>
+          </header>
+
+          <table className="print-table buying-table">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Rate</th>
+                <th>Avg monthly mortgage</th>
+                <th>Principal</th>
+                <th>Interest</th>
+                <th>Mortgage left</th>
+                <th>Repaid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.years.map((row) => (
+                <tr key={`print-buy-${row.year}`}>
+                  <td>{row.year}</td>
+                  <td>{percent(row.annualRate)}</td>
+                  <td>{preciseMoney(row.monthlyPayment)}</td>
+                  <td>{money(row.totalPrincipalPaid)}</td>
+                  <td>{money(row.totalInterestPaid)}</td>
+                  <td>{money(row.endingBalance)}</td>
+                  <td>{percent(row.paidOffPercent)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Renting</p>
+              <h2>Renting overview</h2>
+            </div>
+            <span>Page 1 of Renting</span>
+          </header>
+
+          <div className="workbook rent-workbook print-workbook">
+            <section className="input-book" aria-label="Printed renting inputs">
+              <div className="tab-panel">
+                <div className="sheet-title">
+                  <h2>Renting inputs</h2>
+                  <span>Rent-growth worksheet</span>
+                </div>
+                <div className="detail-sheet print-detail-sheet">
+                  <DetailRow amount={preciseMoney(inputs.monthlyRent)} label="Monthly rent" />
+                  <DetailRow amount={optionalRentIncreaseLabel} label="Annual rent increase" />
+                  <DetailRow amount={optionalRentalUtilitiesLabel} label="Rental utilities/month" />
+                </div>
+              </div>
+            </section>
+
+            <section className="results-book" aria-label="Printed renting results">
+              <div className="sheet-title results-title">
+                <div>
+                  <h2>Monthly spending in month {results.selectedMonth}</h2>
+                  <span>Year {selectedYear}, month {selectedMonthInYear}</span>
+                </div>
+              </div>
+              <div className="monthly-grid four-up rent-summary">
+                <div className="monthly-card rent">
+                  <span>Monthly rent in month {results.selectedMonth}</span>
+                  <strong>{preciseMoney(results.selectedMonthlyRent)}</strong>
+                </div>
+                <div className="monthly-card">
+                  <span>Rental utilities</span>
+                  <strong>{optionalRentalUtilitiesLabel}</strong>
+                </div>
+                <div className="monthly-card total">
+                  <span>Monthly renting total</span>
+                  <strong>{preciseMoney(results.selectedMonthlyRent + results.monthlyRentalUtilities)}</strong>
+                </div>
+                <div className="monthly-card total">
+                  <span>Cumulative cost month {results.selectedMonth}</span>
+                  <strong>{money(results.selectedRentCash)}</strong>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Renting</p>
+              <h2>Rent schedule</h2>
+            </div>
+            <span>Page 2 of Renting</span>
+          </header>
+
+          <table className="print-table rent-table">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Monthly rent</th>
+                <th>Annual rent</th>
+                <th>Total rent</th>
+                <th>Total utilities</th>
+                <th>Total renting cash</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.rentYears.map((row) => (
+                <tr key={`print-rent-${row.year}`}>
+                  <td>{row.year}</td>
+                  <td>{preciseMoney(row.monthlyRent)}</td>
+                  <td>{money(row.annualRent)}</td>
+                  <td>{money(row.totalRent)}</td>
+                  <td>{money(row.totalRentalUtilities)}</td>
+                  <td>{money(row.totalRentalCash)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Buy vs. Rent</p>
+              <h2>Comparison overview</h2>
+            </div>
+            <span>Page 1 of Buy vs. Rent</span>
+          </header>
+
+          <section className="results-book comparison-panel print-panel" aria-label="Printed buy versus rent">
+            <div className="sheet-title results-title">
+              <div>
+                <h2>Buy vs. rent through month {results.selectedMonth}</h2>
+                <span>Simplified cash paid after purchase and estimated home equity on the same timeline</span>
+              </div>
+            </div>
+
+            <div className="comparison-assumptions">
+              <div>
+                <span>Home price</span>
+                <strong>{money(results.purchasePrice)}</strong>
+              </div>
+              <div>
+                <span>Down payment</span>
+                <strong>{percent(results.downPaymentPercent)}</strong>
+              </div>
+              <div>
+                <span>Mortgage rate in month {results.selectedMonth}</span>
+                <strong>{percent(results.selectedAnnualRate)}</strong>
+              </div>
+              <div>
+                <span>Mortgage frequency</span>
+                <strong>{selectedPaymentFrequencyOption.label}</strong>
+              </div>
+              <div>
+                <span>Annual rent increase</span>
+                <strong>{optionalRentIncreaseLabel}</strong>
+              </div>
+              <div>
+                <span>Taxes and utilities</span>
+                <strong>{includeOwnerExtras ? "Included" : "Excluded"}</strong>
+              </div>
+            </div>
+
+            <div className="comparison-overview">
+              <section className="comparison-side buying-side">
+                <div className="comparison-side-heading">
+                  <strong>Buying</strong>
+                  <span>Through month {results.selectedMonth}</span>
+                </div>
+                <div className="comparison-metrics">
+                  <div className="comparison-metric cash-metric">
+                    <span>Cash paid after purchase</span>
+                    <strong>{money(comparisonBuyingAfterPurchase)}</strong>
+                    <small>{buyingTotalBreakdown}</small>
+                  </div>
+                  <div className="comparison-metric equity-metric">
+                    <span>Equity if the home is still worth {money(results.purchasePrice)}</span>
+                    <strong>{money(comparisonHomeEquity)}</strong>
+                    <small>Home price minus mortgage balance</small>
+                  </div>
+                  <div className="comparison-metric cost-metric">
+                    <span>Costs not recovered as equity</span>
+                    <strong>{money(comparisonBuyingCost)}</strong>
+                    <small>{buyingCostBreakdown}</small>
+                  </div>
+                </div>
+                <div className="comparison-upfront">
+                  <span>
+                    <strong>Down payment</strong>
+                    <small>Up-front cash · contributes to equity</small>
+                  </span>
+                  <strong>{money(results.downPayment)}</strong>
+                </div>
+              </section>
+
+              <section className="comparison-side renting-side">
+                <div className="comparison-side-heading">
+                  <strong>Renting</strong>
+                  <span>Through month {results.selectedMonth}</span>
+                </div>
+                <div className="comparison-metrics">
+                  <div className="comparison-metric cash-metric">
+                    <span>Renting cash paid</span>
+                    <strong>{money(results.selectedRentCash)}</strong>
+                    <small>{hasAdvancedRentingCosts ? "Rent + rental utilities" : "Flat rent paid to date"}</small>
+                  </div>
+                  <div className="comparison-metric equity-metric">
+                    <span>Estimated home equity</span>
+                    <strong>$0</strong>
+                    <small>Rent does not reduce a mortgage</small>
+                  </div>
+                  <div className="comparison-metric cost-metric">
+                    <span>Costs not recovered as equity</span>
+                    <strong>{money(results.selectedRentCash)}</strong>
+                    <small>All entered renting cash is a housing cost</small>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+        </article>
+
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Buy vs. Rent</p>
+              <h2>Comparison schedule</h2>
+            </div>
+            <span>Page 2 of Buy vs. Rent</span>
+          </header>
+
+          <table className="print-table comparison-table">
+            <thead>
+              <tr>
+                <th>Year</th>
+                <th>Down payment</th>
+                <th>Buying cash after purchase</th>
+                <th>Estimated home equity</th>
+                <th>Costs not building equity</th>
+                <th>Rent cash paid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.years.map((row, index) => {
+                const yearlyTaxesUtilities =
+                  (results.monthlyTaxes + results.monthlyUtilities) * 12 * row.year
+                const yearlyMaintenanceInsurance =
+                  (results.monthlyMaintenance + results.monthlyHomeInsurance) * 12 * row.year
+                const yearlyOwnershipCosts =
+                  (includeOwnerExtras ? yearlyTaxesUtilities : 0) + yearlyMaintenanceInsurance
+
+                return (
+                  <tr key={`print-compare-${row.year}`}>
+                    <td>{row.year}</td>
+                    <td>{money(results.downPayment)}</td>
+                    <td>{money(row.totalPrincipalPaid + row.totalInterestPaid + yearlyOwnershipCosts)}</td>
+                    <td>{money(Math.max(0, results.purchasePrice - row.endingBalance))}</td>
+                    <td>
+                      {money(
+                        results.cmhcPremium +
+                          row.totalInterestPaid +
+                          yearlyOwnershipCosts +
+                          (isClosingCostsComplete ? results.closingCosts : 0),
+                      )}
+                    </td>
+                    <td>{money(results.rentYears[index]?.totalRentalCash ?? 0)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </article>
+
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Selling · Exit</p>
+              <h2>Exit overview</h2>
+            </div>
+            <span>Page 1 of Selling · Exit</span>
+          </header>
+
+          <div className="workbook exit-workbook print-workbook">
+            <section className="input-book" aria-label="Printed exit assumptions">
+              <div className="tab-panel">
+                <div className="sheet-title">
+                  <h2>Exit assumptions</h2>
+                  <span>Expected sale</span>
+                </div>
+                <div className="detail-sheet print-detail-sheet">
+                  <DetailRow amount={money(exitInputs.salePrice)} label="Expected sale price" />
+                  <DetailRow amount={formatOptionalPercent(exitInputs.sellingCostPercent, isSellingCostPercentComplete)} label="Agent and percentage-based selling costs" />
+                  <DetailRow amount={formatOptionalMoney(exitInputs.fixedSellingCosts, isFixedSellingCostsComplete)} label="Legal, discharge and other selling costs" />
+                  <DetailRow amount={mortgagePenaltySpendLabel} label="Mortgage prepayment penalty" />
+                </div>
+              </div>
+            </section>
+
+            <section className="results-book exit-results" aria-label="Printed exit results">
+              <div className="sheet-title results-title">
+                <div>
+                  <h2>Exit result after {results.selectedMonth} months</h2>
+                  <span>Expected sale price and all entered ownership costs</span>
+                </div>
+              </div>
+              <div className="monthly-grid four-up exit-summary-grid">
+                <div className="monthly-card exit-cash-card">
+                  <span>Cash after sale</span>
+                  <strong>{money(expectedExitScenario.cashAfterSale)}</strong>
+                </div>
+                <div className={expectedExitScenario.homeValueChange >= 0 ? "monthly-card exit-positive-card" : "monthly-card exit-negative-card"}>
+                  <span>Home value change</span>
+                  <strong>{money(expectedExitScenario.homeValueChange)}</strong>
+                </div>
+                <div className={expectedExitScenario.netOwnershipResult >= 0 ? "monthly-card exit-positive-card" : "monthly-card exit-negative-card"}>
+                  <span>Buying result after sale</span>
+                  <strong>{money(expectedExitScenario.netOwnershipResult)}</strong>
+                </div>
+                <div className="monthly-card total">
+                  <span>{effectiveMonthlyLabel}</span>
+                  <strong>{money(effectiveMonthlyValue)}</strong>
+                </div>
+              </div>
+
+              <div className={housingCashFlowDifference >= 0 ? "exit-rent-comparison buying-lower-cash-flow" : "exit-rent-comparison renting-lower-cash-flow"}>
+                <div>
+                  <span>Same-period comparison</span>
+                  <strong>Estimated housing cash-flow difference:</strong>
+                  <small>Renting cash paid {money(results.selectedRentCash)}</small>
+                </div>
+                <strong>{signedMoney(housingCashFlowDifference)}</strong>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article className="print-page">
+          <header className="print-page-heading">
+            <div>
+              <p className="card-kicker">Selling · Exit</p>
+              <h2>Exit details</h2>
+            </div>
+            <span>Page 2 of Selling · Exit</span>
+          </header>
+
+          <div className="print-two-column">
+            <section className="exit-section">
+              <div className="exit-section-heading">
+                <div>
+                  <p className="card-kicker">Equity at sale</p>
+                  <h3>How your equity was built</h3>
+                </div>
+              </div>
+              <div className="detail-sheet exit-detail-sheet">
+                <DetailRow amount={money(results.downPayment)} label="Original down payment" />
+                <DetailRow amount={money(results.selectedPrincipalPaid)} label="Mortgage principal repaid" />
+                <DetailRow amount={money(expectedExitScenario.homeValueChange)} label="Home value change" />
+                <DetailRow amount={money(expectedExitScenario.grossHomeEquity)} emphasis label="Gross home equity at sale" />
+              </div>
+            </section>
+
+            <section className="exit-section">
+              <div className="exit-section-heading">
+                <div>
+                  <p className="card-kicker">Cash at closing</p>
+                  <h3>What you receive when the home is sold</h3>
+                </div>
+              </div>
+              <div className="detail-sheet exit-detail-sheet">
+                <DetailRow amount={money(exitInputs.salePrice)} label="Expected sale price" />
+                <DetailRow amount={sellingCostsLabel} label="Selling costs" />
+                <DetailRow amount={deductionMoney(results.balanceAtSelectedMonth)} label="Mortgage balance repaid" />
+                <DetailRow amount={mortgagePenaltyLabel} label="Mortgage prepayment penalty" />
+                <DetailRow amount={money(expectedExitScenario.cashAfterSale)} emphasis label="Cash after sale" />
+              </div>
+            </section>
+          </div>
+
+          <table className="print-table">
+            <tbody>
+              <tr>
+                <th>Cash paid before selling</th>
+                <td>{money(cashPaidBeforeSale)}</td>
+                <th>Renting cash paid</th>
+                <td>{money(results.selectedRentCash)}</td>
+              </tr>
+              <tr>
+                <th>Mortgage balance repaid</th>
+                <td>{deductionMoney(results.balanceAtSelectedMonth)}</td>
+                <th>{exitComparisonWinner}</th>
+                <td>{housingCashFlowDifference === 0 ? money(0) : money(Math.abs(housingCashFlowDifference))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
+      </section>
 
       <footer>
         <p>
