@@ -1183,7 +1183,7 @@ footer {
 
 .mortgage-status-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 10px;
   border-top: 1px solid var(--line);
   border-left: 1px solid var(--line);

@@ -448,6 +448,10 @@ export default function Home() {
     const selectedRentalUtilitiesPaid = selectedRentRow?.totalRentalUtilities ?? 0
     const selectedRentCash = selectedRentRow?.totalRentalCash ?? 0
     const selectedOwnerAdvancedPaid = monthlyOwnerAdvanced * safeSelectedMonth
+    const payoffMonth =
+      schedule.months.find((row) => row.endingBalance <= 0.005)?.month ??
+      schedule.months.at(-1)?.month ??
+      safeSelectedMonth
 
     return {
       ...schedule,
@@ -476,6 +480,7 @@ export default function Home() {
       selectedRentCash,
       balanceAtSelectedMonth: selectedScheduleRow?.endingBalance ?? 0,
       paidOffAtSelectedMonth: selectedScheduleRow?.paidOffPercent ?? 100,
+      payoffMonth,
       rentYears: rentSchedule.years,
     }
   }, [inputs, mortgagePaymentFrequency, renewalRates, selectedMonth])
@@ -527,6 +532,18 @@ export default function Home() {
   const selectedPrincipalPercent =
     principalVsInterestTotal === 0 ? 0 : (results.selectedPrincipalPaid / principalVsInterestTotal) * 100
   const selectedDurationPhrase = durationPhrase(results.selectedMonth)
+  const payoffDurationPhrase =
+    results.mortgageAmount <= 0 ? "Already paid off" : durationPhrase(results.payoffMonth)
+  const payoffMonthsSaved = Math.max(
+    0,
+    Math.round(inputs.amortizationYears) * 12 - results.payoffMonth,
+  )
+  const payoffSavingsPhrase =
+    results.mortgageAmount <= 0
+      ? "No mortgage"
+      : payoffMonthsSaved > 0
+      ? `${durationPhrase(payoffMonthsSaved)} faster`
+      : "Matches amortization"
   const selectedYear = Math.ceil(results.selectedMonth / 12)
   const selectedMonthInYear = ((results.selectedMonth - 1) % 12) + 1
   const monthlyOwnershipCosts = results.monthlyUtilities + results.monthlyOwnerAdvanced
@@ -1058,13 +1075,12 @@ export default function Home() {
               </section>
               <p className="monthly-explainer">
                 <strong>Does the monthly cost change?</strong> In this estimate, the mortgage
-                payment stays level within each five-year term and is recalculated at renewal using
-                the entered rate, remaining balance, and remaining amortization. Entered monthly
-                ownership costs stay level. Accelerated weekly and accelerated bi-weekly payments
-                use the selected payment cadence, so months with an extra payment show higher
-                mortgage cash flow. Within each term, mortgage interest generally goes down while
-                principal—the part that pays off your mortgage—goes up. Once the mortgage is paid
-                off, the entered ownership costs remain.
+                payment stays level within each five-year term. Renewal payments are based on the
+                regular scheduled amortization, while accelerated weekly and accelerated bi-weekly
+                payments reduce the actual balance faster and shorten the payoff timeline. Months
+                with an extra payment show higher mortgage cash flow. Within each term, mortgage
+                interest generally goes down while principal—the part that pays off your mortgage—goes
+                up. Once the mortgage is paid off, the entered ownership costs remain.
               </p>
 
               <div className="graph-panel" id="mortgage-graph">
@@ -1134,6 +1150,14 @@ export default function Home() {
                     <span>Mortgage repaid</span>
                     <strong>{percent(results.paidOffAtSelectedMonth)}</strong>
                   </div>
+                  <div>
+                    <span>Estimated payoff</span>
+                    <strong>{payoffDurationPhrase}</strong>
+                  </div>
+                  <div>
+                    <span>Time saved</span>
+                    <strong>{payoffSavingsPhrase}</strong>
+                  </div>
                 </div>
               </div>
             </section>
@@ -1147,10 +1171,10 @@ export default function Home() {
                 <p>
                   Principal is the part of each payment that reduces what you still owe. Mortgage
                   interest is the cost of borrowing. Municipal taxes are converted from the annual
-                  amount to a monthly cost. Mortgage payments are recalculated at each five-year
-                  renewal using the entered rate. Accelerated payments are applied at the selected
-                  weekly or bi-weekly cadence. All entered recurring ownership costs accumulate
-                  through each year; closing costs are counted once.
+                  amount to a monthly cost. Renewal payments use the entered rate and regular
+                  scheduled amortization. Accelerated payments are applied at the selected weekly
+                  or bi-weekly cadence to reduce the actual balance faster. All entered recurring
+                  ownership costs accumulate through each year; closing costs are counted once.
                 </p>
               </div>
             </div>

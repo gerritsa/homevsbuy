@@ -228,10 +228,12 @@ export function buildSchedule(
 
   const months: MonthlyRow[] = []
   let balance = safeMortgage
+  let scheduledBalance = safeMortgage
   let totalPrincipalPaid = 0
   let totalInterestPaid = 0
   let currentAnnualRate = annualRates[0]
   let currentMonthlyRate = 0
+  let currentRegularMonthlyPayment = 0
   let currentPeriodicPayment = 0
   let currentPeriodRate = 0
   let initialEquivalentMonthlyPayment = 0
@@ -269,18 +271,29 @@ export function buildSchedule(
       const termIndex = Math.min(Math.floor((month - 1) / 60), annualRates.length - 1)
       currentAnnualRate = annualRates[termIndex]
       currentMonthlyRate = monthlyRateFor(currentAnnualRate)
-      const regularMonthlyPayment = paymentFor(
-        balance,
+      currentRegularMonthlyPayment = paymentFor(
+        scheduledBalance,
         currentMonthlyRate,
         numberOfPayments - month + 1,
       )
-      currentPeriodicPayment = regularMonthlyPayment / paymentCadence.divisorFromMonthlyPayment
+      currentPeriodicPayment =
+        currentRegularMonthlyPayment / paymentCadence.divisorFromMonthlyPayment
       currentPeriodRate = periodRateFor(currentAnnualRate, paymentCadence.paymentsPerYear)
 
       if (month === 1) {
         initialEquivalentMonthlyPayment =
           (currentPeriodicPayment * paymentCadence.paymentsPerYear) / 12
       }
+    }
+
+    if (scheduledBalance > 0.005 && month <= numberOfPayments) {
+      const scheduledInterest = scheduledBalance * currentMonthlyRate
+      const scheduledPrincipal = Math.min(
+        Math.max(0, currentRegularMonthlyPayment - scheduledInterest),
+        scheduledBalance,
+      )
+
+      scheduledBalance = Math.max(0, scheduledBalance - scheduledPrincipal)
     }
 
     let interestPaid = 0

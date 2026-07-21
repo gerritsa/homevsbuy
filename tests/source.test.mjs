@@ -87,6 +87,12 @@ test("supports accelerated mortgage payment frequencies", () => {
   const monthly = buildSchedule(520_000, 4.3, 25)
   const acceleratedBiweekly = buildSchedule(520_000, 4.3, 25, "accelerated-biweekly")
   const acceleratedWeekly = buildSchedule(520_000, 4.3, 25, "accelerated-weekly")
+  const biweeklyPayoffMonth = acceleratedBiweekly.months.find(
+    (row) => row.endingBalance <= 0.005,
+  )?.month
+  const weeklyPayoffMonth = acceleratedWeekly.months.find(
+    (row) => row.endingBalance <= 0.005,
+  )?.month
 
   assert.ok(
     Math.abs(acceleratedBiweekly.monthlyPayment - monthly.monthlyPayment * (13 / 12)) <
@@ -106,6 +112,8 @@ test("supports accelerated mortgage payment frequencies", () => {
   )
   assert.ok(Math.abs(acceleratedBiweekly.years[4].endingBalance - 439_134.627392) < 0.000001)
   assert.ok(Math.abs(acceleratedWeekly.years[4].endingBalance - 439_051.089406) < 0.000001)
+  assert.equal(biweeklyPayoffMonth, 262)
+  assert.equal(weeklyPayoffMonth, 261)
   assert.equal(acceleratedBiweekly.years[24].endingBalance, 0)
 })
 
@@ -205,8 +213,11 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(page, /Payment frequency/)
   assert.match(page, /Accelerated bi-weekly/)
   assert.match(page, /Accelerated weekly/)
-  assert.match(page, /selected payment cadence/)
+  assert.match(page, /selected weekly\s+or bi-weekly cadence/)
   assert.match(page, /months with an extra weekly or bi-weekly payment/)
+  assert.match(page, /Estimated payoff/)
+  assert.match(page, /Time saved/)
+  assert.match(page, /shorten the payoff timeline/)
   assert.match(page, /Mortgage frequency/)
   assert.match(page, /Annual rent increase/)
   assert.match(page, /Selling · Exit/)
@@ -257,6 +268,7 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(css, /\.info-popover/)
   assert.match(css, /\.monthly-costs/)
   assert.match(css, /\.upfront-costs/)
+  assert.match(css, /\.mortgage-status-grid[\s\S]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/)
   assert.match(css, /\.comparison-table-groups/)
   assert.match(css, /color-mix\(in srgb, var\(--rent\) 12%, white\)/)
   assert.match(css, /\.comparison-table th\.table-down-payment/)
