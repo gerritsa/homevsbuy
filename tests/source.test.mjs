@@ -83,6 +83,32 @@ test("recalculates payments at each five-year mortgage renewal", () => {
   assert.ok(schedule.years[24].endingBalance < 0.01)
 })
 
+test("supports accelerated mortgage payment frequencies", () => {
+  const monthly = buildSchedule(520_000, 4.3, 25)
+  const acceleratedBiweekly = buildSchedule(520_000, 4.3, 25, "accelerated-biweekly")
+  const acceleratedWeekly = buildSchedule(520_000, 4.3, 25, "accelerated-weekly")
+
+  assert.ok(
+    Math.abs(acceleratedBiweekly.monthlyPayment - monthly.monthlyPayment * (13 / 12)) <
+      0.000001,
+  )
+  assert.equal(acceleratedWeekly.monthlyPayment, acceleratedBiweekly.monthlyPayment)
+  assert.ok(acceleratedBiweekly.months[0].principalPaid > monthly.months[0].principalPaid)
+  assert.ok(acceleratedWeekly.months[0].principalPaid > acceleratedBiweekly.months[0].principalPaid)
+  assert.ok(acceleratedBiweekly.months.some((row) => row.mortgagePayment > monthly.monthlyPayment * 1.4))
+  assert.ok(acceleratedWeekly.months.some((row) => row.mortgagePayment > monthly.monthlyPayment * 1.2))
+  assert.ok(acceleratedBiweekly.years[4].endingBalance < monthly.years[4].endingBalance)
+  assert.ok(acceleratedWeekly.years[4].endingBalance < acceleratedBiweekly.years[4].endingBalance)
+  assert.ok(acceleratedBiweekly.years[24].totalInterestPaid < monthly.years[24].totalInterestPaid)
+  assert.ok(
+    acceleratedWeekly.years[24].totalInterestPaid <
+      acceleratedBiweekly.years[24].totalInterestPaid,
+  )
+  assert.ok(Math.abs(acceleratedBiweekly.years[4].endingBalance - 439_134.627392) < 0.000001)
+  assert.ok(Math.abs(acceleratedWeekly.years[4].endingBalance - 439_051.089406) < 0.000001)
+  assert.equal(acceleratedBiweekly.years[24].endingBalance, 0)
+})
+
 test("applies annual rent increases at rental-year boundaries", () => {
   const schedule = buildRentSchedule(2_700, 100, 2)
 
@@ -176,6 +202,12 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
   assert.match(page, /<details className="advanced-panel" open>/)
   assert.match(page, /field-grid advanced-cost-grid/)
   assert.match(page, /Mortgage renewal rates/)
+  assert.match(page, /Payment frequency/)
+  assert.match(page, /Accelerated bi-weekly/)
+  assert.match(page, /Accelerated weekly/)
+  assert.match(page, /selected payment cadence/)
+  assert.match(page, /months with an extra weekly or bi-weekly payment/)
+  assert.match(page, /Mortgage frequency/)
   assert.match(page, /Annual rent increase/)
   assert.match(page, /Selling · Exit/)
   assert.match(page, /Plain-language read/)

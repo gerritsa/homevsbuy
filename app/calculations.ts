@@ -42,6 +42,8 @@ export type RentYearRow = {
   totalRentalCash: number
 }
 
+export type MortgagePaymentFrequency = "monthly" | "accelerated-biweekly" | "accelerated-weekly"
+
 export type MortgageAmounts = {
   purchasePrice: number
   downPaymentPercent: number
@@ -211,6 +213,7 @@ export function buildSchedule(
   mortgageAmount: number,
   annualRateOrRates: number | number[],
   amortizationYears: number,
+  paymentFrequency: MortgagePaymentFrequency = "monthly",
 ) {
   const safeMortgage = Math.max(0, mortgageAmount)
   const safeYears = Math.max(1, Math.round(amortizationYears))
@@ -229,12 +232,26 @@ export function buildSchedule(
   let totalInterestPaid = 0
   let currentAnnualRate = annualRates[0]
   let currentMonthlyRate = 0
-  let currentMonthlyPayment = 0
+  let currentPeriodicPayment = 0
+  let currentPeriodRate = 0
+  let initialEquivalentMonthlyPayment = 0
+  let completedPayments = 0
+
+  const paymentCadence = {
+    monthly: { paymentsPerYear: 12, divisorFromMonthlyPayment: 1 },
+    "accelerated-biweekly": { paymentsPerYear: 26, divisorFromMonthlyPayment: 2 },
+    "accelerated-weekly": { paymentsPerYear: 52, divisorFromMonthlyPayment: 4 },
+  }[paymentFrequency]
 
   const monthlyRateFor = (annualRate: number) => {
     const nominalAnnualRate = annualRate / 100
     // Canadian fixed mortgage rates are quoted with semi-annual compounding.
     return nominalAnnualRate === 0 ? 0 : (1 + nominalAnnualRate / 2) ** (1 / 6) - 1
+  }
+
+  const periodRateFor = (annualRate: number, paymentsPerYear: number) => {
+    const nominalAnnualRate = annualRate / 100
+    return nominalAnnualRate === 0 ? 0 : (1 + nominalAnnualRate / 2) ** (2 / paymentsPerYear) - 1
   }
 
   const paymentFor = (principal: number, monthlyRate: number, paymentCount: number) => {
@@ -252,23 +269,44 @@ export function buildSchedule(
       const termIndex = Math.min(Math.floor((month - 1) / 60), annualRates.length - 1)
       currentAnnualRate = annualRates[termIndex]
       currentMonthlyRate = monthlyRateFor(currentAnnualRate)
-      currentMonthlyPayment = paymentFor(
+      const regularMonthlyPayment = paymentFor(
         balance,
         currentMonthlyRate,
         numberOfPayments - month + 1,
       )
+      currentPeriodicPayment = regularMonthlyPayment / paymentCadence.divisorFromMonthlyPayment
+      currentPeriodRate = periodRateFor(currentAnnualRate, paymentCadence.paymentsPerYear)
+
+      if (month === 1) {
+        initialEquivalentMonthlyPayment =
+          (currentPeriodicPayment * paymentCadence.paymentsPerYear) / 12
+      }
     }
 
-    const interestPaid = balance > 0.005 ? balance * currentMonthlyRate : 0
-    const principalPaid =
-      balance > 0.005
-        ? Math.min(Math.max(0, currentMonthlyPayment - interestPaid), balance)
-        : 0
+    let interestPaid = 0
+    let principalPaid = 0
+    const monthEnd = month / 12
+
+    while (
+      balance > 0.005 &&
+      (completedPayments + 1) / paymentCadence.paymentsPerYear <= monthEnd + 1e-12
+    ) {
+      const periodInterest = balance * currentPeriodRate
+      const periodPrincipal = Math.min(
+        Math.max(0, currentPeriodicPayment - periodInterest),
+        balance,
+      )
+
+      interestPaid += periodInterest
+      principalPaid += periodPrincipal
+      completedPayments += 1
+      balance = Math.max(0, balance - periodPrincipal)
+    }
+
     const mortgagePayment = principalPaid + interestPaid
 
     totalPrincipalPaid += principalPaid
     totalInterestPaid += interestPaid
-    balance = Math.max(0, balance - principalPaid)
 
     months.push({
       month,
@@ -292,7 +330,7 @@ export function buildSchedule(
     return {
       year,
       annualRate: yearMonths[0]?.annualRate ?? annualRates.at(-1) ?? 0,
-      monthlyPayment: yearMonths[0]?.mortgagePayment ?? 0,
+      monthlyPayment: yearMonths.reduce((sum, row) => sum + row.mortgagePayment, 0) / 12,
       principalPaid: yearMonths.reduce((sum, row) => sum + row.principalPaid, 0),
       interestPaid: yearMonths.reduce((sum, row) => sum + row.interestPaid, 0),
       totalPrincipalPaid: lastMonth?.totalPrincipalPaid ?? 0,
@@ -303,7 +341,7 @@ export function buildSchedule(
   })
 
   return {
-    monthlyPayment: months[0]?.mortgagePayment ?? 0,
+    monthlyPayment: initialEquivalentMonthlyPayment,
     monthlyRate: monthlyRateFor(annualRates[0]),
     months,
     years,

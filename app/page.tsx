@@ -7,6 +7,7 @@ import {
   calculateExitScenario,
   calculateMortgageAmounts,
   LONG_TERM_MONTHS,
+  type MortgagePaymentFrequency,
 } from "./calculations"
 
 type CalculatorInputs = {
@@ -89,6 +90,28 @@ const initialConfirmedExitZeros: Record<OptionalExitInputKey, boolean> = {
   fixedSellingCosts: false,
   mortgagePenalty: false,
 }
+
+const mortgagePaymentFrequencyOptions: {
+  value: MortgagePaymentFrequency
+  label: string
+  description: string
+}[] = [
+  {
+    value: "monthly",
+    label: "Monthly",
+    description: "12 monthly payments per year.",
+  },
+  {
+    value: "accelerated-biweekly",
+    label: "Accelerated bi-weekly",
+    description: "Half the monthly payment every two weeks, for 26 payments per year.",
+  },
+  {
+    value: "accelerated-weekly",
+    label: "Accelerated weekly",
+    description: "One quarter of the monthly payment every week, for 52 payments per year.",
+  },
+]
 
 const currency = new Intl.NumberFormat("en-CA", {
   style: "currency",
@@ -379,6 +402,8 @@ export default function Home() {
   const [selectedMonth, setSelectedMonth] = useState(1)
   const [includeOwnerExtras, setIncludeOwnerExtras] = useState(true)
   const [renewalRates, setRenewalRates] = useState([4.3, 4.3, 4.3, 4.3, 4.3])
+  const [mortgagePaymentFrequency, setMortgagePaymentFrequency] =
+    useState<MortgagePaymentFrequency>("monthly")
 
   const results = useMemo(() => {
     const mortgageAmounts = calculateMortgageAmounts(
@@ -391,6 +416,7 @@ export default function Home() {
       mortgageAmounts.mortgageAmount,
       scheduleRates,
       inputs.amortizationYears,
+      mortgagePaymentFrequency,
     )
     const monthlyTaxes = Math.max(0, inputs.annualTaxes) / 12
     const monthlyUtilities = Math.max(0, inputs.monthlyUtilities)
@@ -452,7 +478,7 @@ export default function Home() {
       paidOffAtSelectedMonth: selectedScheduleRow?.paidOffPercent ?? 100,
       rentYears: rentSchedule.years,
     }
-  }, [inputs, renewalRates, selectedMonth])
+  }, [inputs, mortgagePaymentFrequency, renewalRates, selectedMonth])
 
   const updateInput = (key: keyof CalculatorInputs, value: number) => {
     if (isOptionalInputKey(key)) {
@@ -555,6 +581,9 @@ export default function Home() {
     results.annualRentIncrease,
     isRentIncreaseComplete,
   )
+  const selectedPaymentFrequencyOption =
+    mortgagePaymentFrequencyOptions.find((option) => option.value === mortgagePaymentFrequency) ??
+    mortgagePaymentFrequencyOptions[0]
   const showCmhcDetails = results.downPaymentPercent < 20
   const comparisonBuyingTableColumnCount =
     7 +
@@ -702,6 +731,7 @@ export default function Home() {
     setSelectedMonth(1)
     setIncludeOwnerExtras(true)
     setRenewalRates([4.3, 4.3, 4.3, 4.3, 4.3])
+    setMortgagePaymentFrequency("monthly")
   }
 
   return (
@@ -832,6 +862,26 @@ export default function Home() {
                       </select>
                     </span>
                   </label>
+                  <label className="field" htmlFor="payment-frequency">
+                    <span className="field-label">Payment frequency</span>
+                    <span className="input-shell select-shell">
+                      <select
+                        id="payment-frequency"
+                        onChange={(event) =>
+                          setMortgagePaymentFrequency(
+                            event.target.value as MortgagePaymentFrequency,
+                          )
+                        }
+                        value={mortgagePaymentFrequency}
+                      >
+                        {mortgagePaymentFrequencyOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  </label>
                   <NumberField
                     id="annual-taxes"
                     label="Property taxes"
@@ -857,7 +907,7 @@ export default function Home() {
                   </p>
                 ) : null}
                 <p className="input-note">
-                  Uses Canadian semi-annual compounding.
+                  Uses Canadian semi-annual compounding. {selectedPaymentFrequencyOption.description}
                   {showCmhcDetails
                     ? " Because the entered down payment is below 20%, an eligible estimated CMHC premium is added to the mortgage. A 0.20 percentage-point premium surcharge is included for a 30-year insured amortization. Provincial tax on the premium is not included. A 30-year insured mortgage assumes the buyer is eligible as a first-time buyer or purchaser of a new build."
                     : ""}
@@ -935,7 +985,10 @@ export default function Home() {
 
               <div className="monthly-grid four-up">
                 <div className="monthly-card owner">
-                  <span>Mortgage payment</span>
+                  <span className="label-with-info">
+                    Mortgage payment
+                    <InfoButton label={`Shows mortgage payments that fall in the selected month. ${selectedPaymentFrequencyOption.description}`} />
+                  </span>
                   <strong>{preciseMoney(results.selectedMonthMortgagePayment)}</strong>
                 </div>
                 <div className="monthly-card">
@@ -978,6 +1031,7 @@ export default function Home() {
                     amount={preciseMoney(results.selectedMonthlyOwnerTotal)}
                     emphasis
                     label="Total monthly spending"
+                    note={`Mortgage uses ${selectedPaymentFrequencyOption.label.toLowerCase()} payments`}
                   />
                 </div>
               </section>
@@ -1006,9 +1060,11 @@ export default function Home() {
                 <strong>Does the monthly cost change?</strong> In this estimate, the mortgage
                 payment stays level within each five-year term and is recalculated at renewal using
                 the entered rate, remaining balance, and remaining amortization. Entered monthly
-                ownership costs stay level. Within each term, mortgage interest generally goes down
-                while principal—the part that pays off your mortgage—goes up. Once the mortgage is
-                paid off, the entered ownership costs remain.
+                ownership costs stay level. Accelerated weekly and accelerated bi-weekly payments
+                use the selected payment cadence, so months with an extra payment show higher
+                mortgage cash flow. Within each term, mortgage interest generally goes down while
+                principal—the part that pays off your mortgage—goes up. Once the mortgage is paid
+                off, the entered ownership costs remain.
               </p>
 
               <div className="graph-panel" id="mortgage-graph">
@@ -1092,7 +1148,8 @@ export default function Home() {
                   Principal is the part of each payment that reduces what you still owe. Mortgage
                   interest is the cost of borrowing. Municipal taxes are converted from the annual
                   amount to a monthly cost. Mortgage payments are recalculated at each five-year
-                  renewal using the entered rate. All entered recurring ownership costs accumulate
+                  renewal using the entered rate. Accelerated payments are applied at the selected
+                  weekly or bi-weekly cadence. All entered recurring ownership costs accumulate
                   through each year; closing costs are counted once.
                 </p>
               </div>
@@ -1108,7 +1165,7 @@ export default function Home() {
                   <tr>
                     <th>Year</th>
                     <th><span className="stacked-heading"><span>Mortgage</span><span>rate</span></span></th>
-                    <th><span className="stacked-heading"><span>Monthly</span><span>payment</span></span></th>
+                    <th><span className="stacked-heading"><span>Avg monthly</span><span>mortgage</span></span></th>
                     <th><span className="stacked-heading"><span>Principal</span><span>this year</span></span></th>
                     <th><span className="stacked-heading"><span>Mortgage interest</span><span>this year</span></span></th>
                     <th><span className="stacked-heading"><span>Cumulative</span><span>principal</span></span></th>
@@ -1344,6 +1401,10 @@ export default function Home() {
                 <div>
                   <span>Mortgage rate in month {results.selectedMonth}</span>
                   <strong>{percent(results.selectedAnnualRate)}</strong>
+                </div>
+                <div>
+                  <span>Mortgage payment frequency</span>
+                  <strong>{selectedPaymentFrequencyOption.label}</strong>
                 </div>
                 <div>
                   <span>Annual rent increase</span>
@@ -1653,6 +1714,9 @@ export default function Home() {
               <p className="comparison-note">
                 Buying cash paid after purchase includes mortgage payments and enabled ownership
                 costs. Cash needed upfront includes the down payment and entered closing costs.
+                Mortgage payments use {selectedPaymentFrequencyOption.label.toLowerCase()} cash
+                flow, so months with an extra weekly or bi-weekly payment show higher mortgage
+                cash paid.
                 The down payment contributes to estimated home equity.{" "}
                 Equity if the home is still worth {money(results.purchasePrice)} is the entered home price
                 minus the remaining mortgage balance
@@ -1949,6 +2013,10 @@ export default function Home() {
                   <span>
                     <small>Sold after</small>
                     <strong>{selectedDurationPhrase}</strong>
+                  </span>
+                  <span>
+                    <small>Mortgage frequency</small>
+                    <strong>{selectedPaymentFrequencyOption.label}</strong>
                   </span>
                   <span>
                     <small>Sold for</small>
@@ -2255,7 +2323,8 @@ export default function Home() {
         <p>
           Simplified cash-flow estimate only. Entered maintenance, homeowner insurance, closing
           costs, rental utilities, entered five-year renewal rates, annual rent increases
-          {showCmhcDetails ? ", and an eligible estimated CMHC premium" : ""} are included. These
+          {showCmhcDetails ? ", an eligible estimated CMHC premium" : ""}, and selected mortgage
+          payment frequency are included. These
           rates are scenarios, not forecasts.
           Home-price changes and selling costs are included only in Selling · Exit using the
           entered assumptions. Investment returns and tenant insurance are excluded.
