@@ -934,7 +934,7 @@ export default function Home() {
         </a>
         <div className="header-actions" aria-label="Calculator actions">
           <button className="reset-button" onClick={exportPrintablePages} type="button">
-            Export print pages
+            Print
           </button>
           <button className="reset-button" onClick={exportConfig} type="button">
             Export config
