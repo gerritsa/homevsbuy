@@ -778,10 +778,6 @@ export default function Home() {
   const isSellingCostPercentComplete = isExitAssumptionComplete("sellingCostPercent")
   const isFixedSellingCostsComplete = isExitAssumptionComplete("fixedSellingCosts")
   const isMortgagePenaltyComplete = isExitAssumptionComplete("mortgagePenalty")
-  const buyingAssumptionsComplete =
-    isMaintenanceComplete && isHomeInsuranceComplete && isClosingCostsComplete
-  const rentingAssumptionsComplete = isRentIncreaseComplete && isRentalUtilitiesComplete
-  const comparisonAssumptionsComplete = buyingAssumptionsComplete && rentingAssumptionsComplete
   const cashNeededUpfrontLabel = isClosingCostsComplete
     ? money(upfrontBuyingCosts)
     : `At least ${money(results.downPayment)}`
@@ -1895,28 +1891,7 @@ export default function Home() {
                     </small>
                   </span>
                 </label>
-
               </div>
-
-              <section className="plain-language-summary" aria-label="Plain-language comparison">
-                <p className="card-kicker">Plain-language read</p>
-                <h3>
-                  If you bought at {money(results.purchasePrice)} and stopped after{" "}
-                  {selectedDurationPhrase}, with the home still worth{" "}
-                  {money(results.purchasePrice)}.
-                </h3>
-                <p>
-                  You would have paid {money(comparisonBuyingAfterPurchase)} after purchase, and
-                  about {money(comparisonHomeEquity)} would be estimated home equity because your
-                  mortgage balance is lower. The part that looks like housing cost, because it is
-                  not recovered as equity, is {money(comparisonBuyingCost)}. Renting for the same
-                  period would have cost {money(results.selectedRentCash)} and would build $0 home
-                  equity.
-                </p>
-                <strong>
-                  For a sale-price comparison with selling costs, use the Selling · Exit tab.
-                </strong>
-              </section>
 
               <div className="comparison-overview">
                 <section className="comparison-side buying-side">
@@ -2171,30 +2146,6 @@ export default function Home() {
                 </div>
               </div>
 
-              <p className="comparison-note">
-                Buying cash paid after purchase includes mortgage payments and enabled ownership
-                costs. Cash needed upfront includes the down payment and entered closing costs.
-                Mortgage payments use {selectedPaymentFrequencyOption.label.toLowerCase()} cash
-                flow, so months with an extra weekly or bi-weekly payment show higher mortgage
-                cash paid.
-                The down payment contributes to estimated home equity.{" "}
-                Equity if the home is still worth {money(results.purchasePrice)} is the entered home price
-                minus the remaining mortgage balance
-                {results.cmhcPremium > 0
-                  ? ", so the financed CMHC premium reduces equity."
-                  : "."}
-                Buying costs not recovered as equity are
-                {results.cmhcPremium > 0 ? " the estimated CMHC premium plus" : ""} mortgage interest
-                {includeOwnerExtras ? " plus municipal taxes and utilities" : ""}
-                {selectedMaintenancePaid > 0 ? " plus entered maintenance" : ""}
-                {selectedHomeInsurancePaid > 0 ? " plus entered homeowner insurance" : ""}
-                {results.closingCosts > 0 ? " plus entered closing costs" : ""};
-                renting&apos;s cash paid includes rent
-                {results.monthlyRentalUtilities > 0 ? " and entered rental utilities" : ""} and is
-                also its included housing cost.
-                {!comparisonAssumptionsComplete ? " Some optional assumptions have not been entered or confirmed as zero." : ""}
-                {!includeOwnerExtras ? " Municipal taxes and utilities are excluded." : ""}
-              </p>
             </section>
           </div>
 

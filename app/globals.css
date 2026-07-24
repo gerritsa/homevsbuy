@@ -516,6 +516,12 @@ footer {
   text-transform: none;
 }
 
+.monthly-card .info-popover {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+
 .monthly-card strong,
 .selected-grid strong,
 .schedule-stat strong {
@@ -709,37 +715,6 @@ footer {
 .exit-rent-comparison > strong {
   flex: 0 0 auto;
   font-size: 1.3rem;
-}
-
-.plain-language-summary {
-  margin: 16px 0;
-  padding: 15px 16px;
-  border: 1px solid var(--line-strong);
-  border-left: 4px solid var(--blue);
-  background: white;
-}
-
-.plain-language-summary h3 {
-  max-width: 860px;
-  margin: 4px 0 0;
-  font-size: 1rem;
-  line-height: 1.35;
-}
-
-.plain-language-summary p:not(.card-kicker) {
-  max-width: 920px;
-  margin: 9px 0 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.55;
-}
-
-.plain-language-summary > strong {
-  display: block;
-  margin-top: 10px;
-  font-size: 0.86rem;
-  line-height: 1.35;
 }
 
 .exit-story-section {
