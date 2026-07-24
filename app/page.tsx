@@ -42,6 +42,7 @@ type OptionalInputKey =
 type OptionalExitInputKey = "sellingCostPercent" | "fixedSellingCosts" | "mortgagePenalty"
 
 type ActiveTab = "buy" | "rent" | "compare" | "exit"
+type SavedConfigStorageMode = "loading" | "shared" | "local"
 
 type CalculatorConfigExport = {
   app: "home-cash-flow-calculator"
@@ -56,6 +57,13 @@ type CalculatorConfigExport = {
   includeOwnerExtras: boolean
   renewalRates: number[]
   mortgagePaymentFrequency: MortgagePaymentFrequency
+}
+
+type SavedCalculatorConfig = {
+  id: string
+  name: string
+  updatedAt: string
+  config: CalculatorConfigExport
 }
 
 const initialInputs: CalculatorInputs = {
@@ -83,6 +91,7 @@ const initialExitInputs: ExitInputs = {
 const CONFIG_APP_ID = "home-cash-flow-calculator"
 const CONFIG_VERSION = 1
 const CONFIG_FILE_EXTENSION = "homebuy.json"
+const SAVED_CONFIGS_STORAGE_KEY = `${CONFIG_APP_ID}.saved-configs.v${CONFIG_VERSION}`
 
 const optionalInputKeys: OptionalInputKey[] = [
   "annualRentIncrease",
@@ -225,6 +234,42 @@ function parseConfigExport(value: unknown): CalculatorConfigExport {
       ? value.mortgagePaymentFrequency
       : "monthly",
   }
+}
+
+function parseSavedConfigs(value: unknown): SavedCalculatorConfig[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.flatMap((item) => {
+    if (!isPlainObject(item) || !isPlainObject(item.config)) {
+      return []
+    }
+
+    const name = typeof item.name === "string" ? item.name.trim() : ""
+    const id = typeof item.id === "string" && item.id ? item.id : crypto.randomUUID()
+    const updatedAt =
+      typeof item.updatedAt === "string" && item.updatedAt
+        ? item.updatedAt
+        : new Date().toISOString()
+
+    if (!name) {
+      return []
+    }
+
+    try {
+      return [
+        {
+          id,
+          name,
+          updatedAt,
+          config: parseConfigExport(item.config),
+        },
+      ]
+    } catch {
+      return []
+    }
+  })
 }
 
 const currency = new Intl.NumberFormat("en-CA", {
@@ -520,6 +565,40 @@ export default function Home() {
     useState<MortgagePaymentFrequency>("monthly")
   const importInputRef = useRef<HTMLInputElement>(null)
   const [configStatus, setConfigStatus] = useState("")
+  const [savedConfigs, setSavedConfigs] = useState<SavedCalculatorConfig[]>([])
+  const [configName, setConfigName] = useState("")
+  const [selectedSavedConfigId, setSelectedSavedConfigId] = useState("")
+  const [savedConfigStorageMode, setSavedConfigStorageMode] =
+    useState<SavedConfigStorageMode>("loading")
+  const [isConfigRequestPending, setIsConfigRequestPending] = useState(false)
+
+  useEffect(() => {
+    const loadSavedConfigs = async () => {
+      try {
+        const response = await fetch("/api/saved-configs", { cache: "no-store" })
+        const data = await response.json()
+
+        if (response.ok && data.storage === "shared") {
+          setSavedConfigs(parseSavedConfigs(data.configs))
+          setSavedConfigStorageMode("shared")
+          return
+        }
+      } catch {
+        // Fall through to local browser storage when the shared store is unavailable.
+      }
+
+      try {
+        setSavedConfigs(
+          parseSavedConfigs(JSON.parse(localStorage.getItem(SAVED_CONFIGS_STORAGE_KEY) ?? "[]")),
+        )
+      } catch {
+        setSavedConfigs([])
+      }
+      setSavedConfigStorageMode("local")
+    }
+
+    void loadSavedConfigs()
+  }, [])
 
   const results = useMemo(() => {
     const mortgageAmounts = calculateMortgageAmounts(
@@ -867,6 +946,7 @@ export default function Home() {
     setRenewalRates([4.3, 4.3, 4.3, 4.3, 4.3])
     setMortgagePaymentFrequency("monthly")
     setConfigStatus("")
+    setSelectedSavedConfigId("")
   }
 
   const buildCurrentConfig = (): CalculatorConfigExport => ({
@@ -883,6 +963,154 @@ export default function Home() {
     renewalRates,
     mortgagePaymentFrequency,
   })
+
+  const applyConfig = (config: CalculatorConfigExport) => {
+    setInputs(config.inputs)
+    setExitInputs(config.exitInputs)
+    setConfirmedInputZeros(config.confirmedInputZeros)
+    setConfirmedExitZeros(config.confirmedExitZeros)
+    setActiveTab(config.activeTab)
+    setSelectedMonth(config.selectedMonth)
+    setIncludeOwnerExtras(config.includeOwnerExtras)
+    setRenewalRates(config.renewalRates)
+    setMortgagePaymentFrequency(config.mortgagePaymentFrequency)
+  }
+
+  const persistLocalSavedConfigs = (configs: SavedCalculatorConfig[]) => {
+    const sortedConfigs = [...configs].sort((first, second) =>
+      second.updatedAt.localeCompare(first.updatedAt),
+    )
+
+    localStorage.setItem(SAVED_CONFIGS_STORAGE_KEY, JSON.stringify(sortedConfigs))
+    setSavedConfigs(sortedConfigs)
+  }
+
+  const saveCurrentConfig = async () => {
+    const trimmedName = configName.trim()
+
+    if (!trimmedName) {
+      setConfigStatus("Enter a name before saving this config.")
+      return
+    }
+
+    if (savedConfigStorageMode === "shared") {
+      setIsConfigRequestPending(true)
+
+      try {
+        const response = await fetch("/api/saved-configs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: selectedSavedConfigId || undefined,
+            name: trimmedName,
+            config: buildCurrentConfig(),
+          }),
+        })
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(
+            typeof data.message === "string" ? data.message : "Shared config save failed.",
+          )
+        }
+
+        const nextSavedConfigs = parseSavedConfigs(data.configs)
+        const savedConfig = nextSavedConfigs.find(
+          (current) => current.name.toLocaleLowerCase() === trimmedName.toLocaleLowerCase(),
+        )
+
+        setSavedConfigs(nextSavedConfigs)
+        setSelectedSavedConfigId(savedConfig?.id ?? "")
+        setConfigStatus(`Saved global config "${trimmedName}".`)
+      } catch (error) {
+        setConfigStatus(error instanceof Error ? error.message : "Shared config save failed.")
+      } finally {
+        setIsConfigRequestPending(false)
+      }
+
+      return
+    }
+
+    const now = new Date().toISOString()
+    const existingConfig = savedConfigs.find(
+      (savedConfig) =>
+        savedConfig.id === selectedSavedConfigId ||
+        savedConfig.name.toLocaleLowerCase() === trimmedName.toLocaleLowerCase(),
+    )
+    const savedConfig = {
+      id: existingConfig?.id ?? crypto.randomUUID(),
+      name: trimmedName,
+      updatedAt: now,
+      config: buildCurrentConfig(),
+    }
+    const nextSavedConfigs = [
+      savedConfig,
+      ...savedConfigs.filter((current) => current.id !== savedConfig.id),
+    ]
+
+    persistLocalSavedConfigs(nextSavedConfigs)
+    setSelectedSavedConfigId(savedConfig.id)
+    setConfigStatus(`Saved browser-only config "${trimmedName}".`)
+  }
+
+  const loadSavedConfig = (id: string) => {
+    const savedConfig = savedConfigs.find((current) => current.id === id)
+
+    if (!savedConfig) {
+      setConfigStatus("Select a saved config to load.")
+      return
+    }
+
+    applyConfig(savedConfig.config)
+    setSelectedSavedConfigId(savedConfig.id)
+    setConfigName(savedConfig.name)
+    setConfigStatus(`Loaded config "${savedConfig.name}".`)
+  }
+
+  const deleteSavedConfig = async () => {
+    const savedConfig = savedConfigs.find((current) => current.id === selectedSavedConfigId)
+
+    if (!savedConfig) {
+      setConfigStatus("Select a saved config to delete.")
+      return
+    }
+
+    if (!window.confirm(`Delete saved config "${savedConfig.name}"?`)) {
+      return
+    }
+
+    if (savedConfigStorageMode === "shared") {
+      setIsConfigRequestPending(true)
+
+      try {
+        const response = await fetch(`/api/saved-configs/${encodeURIComponent(savedConfig.id)}`, {
+          method: "DELETE",
+        })
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(
+            typeof data.message === "string" ? data.message : "Shared config delete failed.",
+          )
+        }
+
+        setSavedConfigs(parseSavedConfigs(data.configs))
+        setConfigStatus(`Deleted global config "${savedConfig.name}".`)
+      } catch (error) {
+        setConfigStatus(error instanceof Error ? error.message : "Shared config delete failed.")
+      } finally {
+        setIsConfigRequestPending(false)
+      }
+    } else {
+      persistLocalSavedConfigs(savedConfigs.filter((current) => current.id !== savedConfig.id))
+      setConfigStatus(`Deleted browser-only config "${savedConfig.name}".`)
+    }
+
+    setSelectedSavedConfigId("")
+    setConfigName("")
+  }
 
   const exportConfig = () => {
     const currentConfig = buildCurrentConfig()
@@ -905,15 +1133,8 @@ export default function Home() {
     try {
       const importedConfig = parseConfigExport(JSON.parse(await file.text()))
 
-      setInputs(importedConfig.inputs)
-      setExitInputs(importedConfig.exitInputs)
-      setConfirmedInputZeros(importedConfig.confirmedInputZeros)
-      setConfirmedExitZeros(importedConfig.confirmedExitZeros)
-      setActiveTab(importedConfig.activeTab)
-      setSelectedMonth(importedConfig.selectedMonth)
-      setIncludeOwnerExtras(importedConfig.includeOwnerExtras)
-      setRenewalRates(importedConfig.renewalRates)
-      setMortgagePaymentFrequency(importedConfig.mortgagePaymentFrequency)
+      applyConfig(importedConfig)
+      setSelectedSavedConfigId("")
       setConfigStatus("Config imported.")
     } catch (error) {
       setConfigStatus(error instanceof Error ? error.message : "Config import failed.")
@@ -933,6 +1154,74 @@ export default function Home() {
           <span>Home Cash-Flow Calculator</span>
         </a>
         <div className="header-actions" aria-label="Calculator actions">
+          <div className="saved-config-actions" aria-label="Saved configs">
+            <span className="saved-config-mode">
+              {savedConfigStorageMode === "shared"
+                ? "Global"
+                : savedConfigStorageMode === "local"
+                ? "This browser"
+                : "Loading"}
+            </span>
+            <label className="visually-hidden" htmlFor="config-name">
+              Config name
+            </label>
+            <input
+              className="config-name-input"
+              id="config-name"
+              onChange={(event) => {
+                setConfigName(event.target.value)
+                setSelectedSavedConfigId("")
+              }}
+              placeholder="Address or config name"
+              type="text"
+              value={configName}
+            />
+            <button
+              className="reset-button"
+              disabled={isConfigRequestPending}
+              onClick={() => void saveCurrentConfig()}
+              type="button"
+            >
+              Save
+            </button>
+            <label className="visually-hidden" htmlFor="saved-configs">
+              Saved configs
+            </label>
+            <select
+              className="saved-config-select"
+              id="saved-configs"
+              onChange={(event) => {
+                const nextId = event.target.value
+                setSelectedSavedConfigId(nextId)
+                const savedConfig = savedConfigs.find((current) => current.id === nextId)
+                setConfigName(savedConfig?.name ?? "")
+              }}
+              value={selectedSavedConfigId}
+            >
+              <option value="">Saved configs</option>
+              {savedConfigs.map((savedConfig) => (
+                <option key={savedConfig.id} value={savedConfig.id}>
+                  {savedConfig.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="reset-button"
+              disabled={isConfigRequestPending}
+              onClick={() => loadSavedConfig(selectedSavedConfigId)}
+              type="button"
+            >
+              Load
+            </button>
+            <button
+              className="reset-button"
+              disabled={isConfigRequestPending}
+              onClick={() => void deleteSavedConfig()}
+              type="button"
+            >
+              Delete
+            </button>
+          </div>
           <button className="reset-button" onClick={exportPrintablePages} type="button">
             Print
           </button>

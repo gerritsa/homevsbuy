@@ -303,3 +303,24 @@ test("ships production metadata and social card", async () => {
   assert.match(packageJson, /"build": "next build"/)
   await assert.doesNotReject(access(new URL("public/og.png", projectRoot)))
 })
+
+test("ships named saved configs with shared storage fallback", async () => {
+  const [page, readRoute, deleteRoute, store, readme] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/saved-configs/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/saved-configs/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/saved-configs/store.ts", import.meta.url), "utf8"),
+    readFile(new URL("../README.md", import.meta.url), "utf8"),
+  ])
+
+  assert.match(page, /Address or config name/)
+  assert.match(page, /Saved configs/)
+  assert.match(page, /Saved global config/)
+  assert.match(page, /Saved browser-only config/)
+  assert.match(readRoute, /storage: "shared"/)
+  assert.match(store, /KV_REST_API_URL/)
+  assert.match(store, /DB_KV_REST_API_URL/)
+  assert.match(deleteRoute, /DELETE/)
+  assert.match(readme, /Vercel KV or Upstash Redis/)
+  assert.match(readme, /KV_REST_API_TOKEN/)
+})

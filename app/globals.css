@@ -108,12 +108,57 @@ footer {
   font-size: 0.8rem;
 }
 
+.reset-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.saved-config-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.saved-config-mode {
+  min-width: 74px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--sheet);
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.config-name-input,
+.saved-config-select {
+  height: 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.config-name-input {
+  width: min(240px, 42vw);
+  padding: 0 10px;
+}
+
+.saved-config-select {
+  width: min(190px, 38vw);
+  padding: 0 28px 0 10px;
 }
 
 .visually-hidden {
@@ -2273,6 +2318,15 @@ footer {
 
   .header-actions {
     justify-content: flex-start;
+  }
+
+  .saved-config-actions {
+    width: 100%;
+  }
+
+  .config-name-input,
+  .saved-config-select {
+    width: min(100%, 240px);
   }
 
   .config-status {
