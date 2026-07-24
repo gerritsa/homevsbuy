@@ -90,7 +90,6 @@ const initialExitInputs: ExitInputs = {
 
 const CONFIG_APP_ID = "home-cash-flow-calculator"
 const CONFIG_VERSION = 1
-const CONFIG_FILE_EXTENSION = "homebuy.json"
 const SAVED_CONFIGS_STORAGE_KEY = `${CONFIG_APP_ID}.saved-configs.v${CONFIG_VERSION}`
 
 const optionalInputKeys: OptionalInputKey[] = [
@@ -563,7 +562,6 @@ export default function Home() {
   const [renewalRates, setRenewalRates] = useState([4.3, 4.3, 4.3, 4.3, 4.3])
   const [mortgagePaymentFrequency, setMortgagePaymentFrequency] =
     useState<MortgagePaymentFrequency>("monthly")
-  const importInputRef = useRef<HTMLInputElement>(null)
   const [configStatus, setConfigStatus] = useState("")
   const [savedConfigs, setSavedConfigs] = useState<SavedCalculatorConfig[]>([])
   const [configName, setConfigName] = useState("")
@@ -947,6 +945,7 @@ export default function Home() {
     setMortgagePaymentFrequency("monthly")
     setConfigStatus("")
     setSelectedSavedConfigId("")
+    setConfigName("")
   }
 
   const buildCurrentConfig = (): CalculatorConfigExport => ({
@@ -989,7 +988,7 @@ export default function Home() {
     const trimmedName = configName.trim()
 
     if (!trimmedName) {
-      setConfigStatus("Enter a name before saving this config.")
+      setConfigStatus("Enter a name before saving this house.")
       return
     }
 
@@ -1023,9 +1022,9 @@ export default function Home() {
 
         setSavedConfigs(nextSavedConfigs)
         setSelectedSavedConfigId(savedConfig?.id ?? "")
-        setConfigStatus(`Saved global config "${trimmedName}".`)
+        setConfigStatus(`Saved global house "${trimmedName}".`)
       } catch (error) {
-        setConfigStatus(error instanceof Error ? error.message : "Shared config save failed.")
+        setConfigStatus(error instanceof Error ? error.message : "Shared house save failed.")
       } finally {
         setIsConfigRequestPending(false)
       }
@@ -1052,32 +1051,32 @@ export default function Home() {
 
     persistLocalSavedConfigs(nextSavedConfigs)
     setSelectedSavedConfigId(savedConfig.id)
-    setConfigStatus(`Saved browser-only config "${trimmedName}".`)
+    setConfigStatus(`Saved browser-only house "${trimmedName}".`)
   }
 
   const loadSavedConfig = (id: string) => {
     const savedConfig = savedConfigs.find((current) => current.id === id)
 
     if (!savedConfig) {
-      setConfigStatus("Select a saved config to load.")
+      setConfigStatus("Select a saved house to load.")
       return
     }
 
     applyConfig(savedConfig.config)
     setSelectedSavedConfigId(savedConfig.id)
     setConfigName(savedConfig.name)
-    setConfigStatus(`Loaded config "${savedConfig.name}".`)
+    setConfigStatus(`Loaded saved house "${savedConfig.name}".`)
   }
 
   const deleteSavedConfig = async () => {
     const savedConfig = savedConfigs.find((current) => current.id === selectedSavedConfigId)
 
     if (!savedConfig) {
-      setConfigStatus("Select a saved config to delete.")
+      setConfigStatus("Select a saved house to delete.")
       return
     }
 
-    if (!window.confirm(`Delete saved config "${savedConfig.name}"?`)) {
+    if (!window.confirm(`Delete saved house "${savedConfig.name}" for everyone?`)) {
       return
     }
 
@@ -1097,48 +1096,19 @@ export default function Home() {
         }
 
         setSavedConfigs(parseSavedConfigs(data.configs))
-        setConfigStatus(`Deleted global config "${savedConfig.name}".`)
+        setConfigStatus(`Deleted global house "${savedConfig.name}".`)
       } catch (error) {
-        setConfigStatus(error instanceof Error ? error.message : "Shared config delete failed.")
+        setConfigStatus(error instanceof Error ? error.message : "Shared house delete failed.")
       } finally {
         setIsConfigRequestPending(false)
       }
     } else {
       persistLocalSavedConfigs(savedConfigs.filter((current) => current.id !== savedConfig.id))
-      setConfigStatus(`Deleted browser-only config "${savedConfig.name}".`)
+      setConfigStatus(`Deleted browser-only house "${savedConfig.name}".`)
     }
 
     setSelectedSavedConfigId("")
     setConfigName("")
-  }
-
-  const exportConfig = () => {
-    const currentConfig = buildCurrentConfig()
-    const serializedConfig = JSON.stringify(currentConfig, null, 2)
-    const blob = new Blob([serializedConfig], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    const dateStamp = new Date().toISOString().slice(0, 10)
-
-    link.href = url
-    link.download = `home-cash-flow-${dateStamp}.${CONFIG_FILE_EXTENSION}`
-    document.body.append(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-    setConfigStatus("Config exported.")
-  }
-
-  const importConfig = async (file: File) => {
-    try {
-      const importedConfig = parseConfigExport(JSON.parse(await file.text()))
-
-      applyConfig(importedConfig)
-      setSelectedSavedConfigId("")
-      setConfigStatus("Config imported.")
-    } catch (error) {
-      setConfigStatus(error instanceof Error ? error.message : "Config import failed.")
-    }
   }
 
   const exportPrintablePages = () => {
@@ -1154,105 +1124,12 @@ export default function Home() {
           <span>Home Cash-Flow Calculator</span>
         </a>
         <div className="header-actions" aria-label="Calculator actions">
-          <div className="saved-config-actions" aria-label="Saved configs">
-            <span className="saved-config-mode">
-              {savedConfigStorageMode === "shared"
-                ? "Global"
-                : savedConfigStorageMode === "local"
-                ? "This browser"
-                : "Loading"}
-            </span>
-            <label className="visually-hidden" htmlFor="config-name">
-              Config name
-            </label>
-            <input
-              className="config-name-input"
-              id="config-name"
-              onChange={(event) => {
-                setConfigName(event.target.value)
-                setSelectedSavedConfigId("")
-              }}
-              placeholder="Address or config name"
-              type="text"
-              value={configName}
-            />
-            <button
-              className="reset-button"
-              disabled={isConfigRequestPending}
-              onClick={() => void saveCurrentConfig()}
-              type="button"
-            >
-              Save
-            </button>
-            <label className="visually-hidden" htmlFor="saved-configs">
-              Saved configs
-            </label>
-            <select
-              className="saved-config-select"
-              id="saved-configs"
-              onChange={(event) => {
-                const nextId = event.target.value
-                setSelectedSavedConfigId(nextId)
-                const savedConfig = savedConfigs.find((current) => current.id === nextId)
-                setConfigName(savedConfig?.name ?? "")
-              }}
-              value={selectedSavedConfigId}
-            >
-              <option value="">Saved configs</option>
-              {savedConfigs.map((savedConfig) => (
-                <option key={savedConfig.id} value={savedConfig.id}>
-                  {savedConfig.name}
-                </option>
-              ))}
-            </select>
-            <button
-              className="reset-button"
-              disabled={isConfigRequestPending}
-              onClick={() => loadSavedConfig(selectedSavedConfigId)}
-              type="button"
-            >
-              Load
-            </button>
-            <button
-              className="reset-button"
-              disabled={isConfigRequestPending}
-              onClick={() => void deleteSavedConfig()}
-              type="button"
-            >
-              Delete
-            </button>
-          </div>
           <button className="reset-button" onClick={exportPrintablePages} type="button">
             Print
-          </button>
-          <button className="reset-button" onClick={exportConfig} type="button">
-            Export config
-          </button>
-          <button
-            className="reset-button"
-            onClick={() => importInputRef.current?.click()}
-            type="button"
-          >
-            Import config
           </button>
           <button className="reset-button" onClick={resetCalculator} type="button">
             Reset
           </button>
-          <input
-            accept=".json,.homebuy.json,application/json"
-            className="visually-hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-
-              if (file) {
-                void importConfig(file)
-              }
-
-              event.target.value = ""
-            }}
-            ref={importInputRef}
-            type="file"
-          />
         </div>
       </header>
       {configStatus ? (
@@ -1262,13 +1139,70 @@ export default function Home() {
       ) : null}
 
       <section className="hero" id="top">
-        <div>
+        <div className="hero-main">
           <p className="eyebrow">Buy or rent worksheet</p>
           <h1>Housing cash-flow calculator.</h1>
-        </div>
-        <div className="hero-note">
-          <span>All amounts in CAD</span>
-          <strong>25-year view</strong>
+          <section className="saved-house-panel" aria-label="Saved houses">
+            <div className="saved-house-row">
+              <label className="saved-house-field" htmlFor="saved-houses">
+                <span>Saved house</span>
+                <select
+                  className="saved-house-select"
+                  id="saved-houses"
+                  onChange={(event) => {
+                    const nextId = event.target.value
+
+                    if (!nextId) {
+                      setSelectedSavedConfigId("")
+                      setConfigName("")
+                      return
+                    }
+
+                    loadSavedConfig(nextId)
+                  }}
+                  value={selectedSavedConfigId}
+                >
+                  <option value="">Start a new house</option>
+                  {savedConfigs.map((savedConfig) => (
+                    <option key={savedConfig.id} value={savedConfig.id}>
+                      {savedConfig.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="saved-house-field name-field" htmlFor="house-name">
+                <span>Name this house</span>
+                <input
+                  className="saved-house-name-input"
+                  id="house-name"
+                  onChange={(event) => setConfigName(event.target.value)}
+                  placeholder="Address or scenario name"
+                  type="text"
+                  value={configName}
+                />
+              </label>
+              <button
+                className="primary-save-button"
+                disabled={isConfigRequestPending}
+                onClick={() => void saveCurrentConfig()}
+                type="button"
+              >
+                Save house
+              </button>
+            </div>
+            <div className="saved-house-meta">
+              {selectedSavedConfigId ? (
+                <button
+                  className="delete-house-button"
+                  disabled={isConfigRequestPending}
+                  onClick={() => void deleteSavedConfig()}
+                  type="button"
+                >
+                  Delete saved house
+                </button>
+              ) : null}
+            </div>
+          </section>
         </div>
       </section>
 
