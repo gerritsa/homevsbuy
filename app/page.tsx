@@ -373,6 +373,7 @@ function NumberField({
   prefix,
   suffix,
   hint,
+  labelNote,
   min = 0,
   max,
   step = "any",
@@ -384,6 +385,7 @@ function NumberField({
   prefix?: string
   suffix?: string
   hint?: string
+  labelNote?: string
   min?: number
   max?: number
   step?: number | "any"
@@ -404,6 +406,7 @@ function NumberField({
           {label}
         </label>
         {hint ? <InfoButton label={hint} /> : null}
+        {labelNote ? <span className="field-label-note">{labelNote}</span> : null}
       </div>
       <span className="input-shell">
         <span
@@ -1387,6 +1390,7 @@ export default function Home() {
                         id="closing-costs"
                         label="Closing costs"
                         hint="FCAC advises budgeting approximately 1.5% to 4% of the purchase price for upfront or closing costs."
+                        labelNote={`2% is ${money(inputs.purchasePrice * 0.02)}`}
                         onChange={(value) => updateInput("closingCosts", value)}
                         prefix="$"
                         step={500}

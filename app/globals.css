@@ -388,6 +388,13 @@ footer {
   padding: 0;
 }
 
+.field-label-note {
+  color: #8993a3;
+  font-size: 0.62rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .input-shell {
   display: flex;
   align-items: center;

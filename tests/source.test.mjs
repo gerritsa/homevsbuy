@@ -207,6 +207,7 @@ test("ships clear cash-flow comparison semantics and visible optional costs", as
       page.indexOf('className="table-interest"'),
   )
   assert.match(page, /FCAC advises budgeting approximately 1\.5% to 4%/)
+  assert.match(page, /2% is \$\{money\(inputs\.purchasePrice \* 0\.02\)\}/)
   assert.match(page, /<details className="advanced-panel" open>/)
   assert.match(page, /field-grid advanced-cost-grid/)
   assert.match(page, /Mortgage renewal rates/)
